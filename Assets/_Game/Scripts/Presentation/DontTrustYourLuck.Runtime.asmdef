@@ -1,0 +1,17 @@
+{
+    "name": "DontTrustYourLuck.Runtime",
+    "rootNamespace": "DontTrustYourLuck.Presentation",
+    "references": [
+        "DontTrustYourLuck.Domain",
+        "DontTrustYourLuck.Infrastructure"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

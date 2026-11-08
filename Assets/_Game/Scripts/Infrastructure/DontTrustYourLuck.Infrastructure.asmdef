@@ -1,0 +1,16 @@
+{
+    "name": "DontTrustYourLuck.Infrastructure",
+    "rootNamespace": "DontTrustYourLuck.Infrastructure",
+    "references": [
+        "DontTrustYourLuck.Domain"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
