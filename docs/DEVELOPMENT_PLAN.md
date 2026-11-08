@@ -108,6 +108,67 @@ Detalhes das decisões: GDD §3 e TDD §3, §7.2, §9.2.1.
 
 **Observação:** não criar um segundo projeto Unity; trabalhar na estrutura já existente.
 
+#### Definição detalhada da Sprint 0 (07/11/2026 — **executada**; M0 aprovado localmente, ver `docs/qa/S0-web-smoke-test.md`)
+
+**Status das tarefas**
+
+| ID | Status | Observação |
+|---|---|---|
+| S0-01 | Concluída | Divergências listadas no diagnóstico de 07/11/2026 (ver abaixo) |
+| S0-02 | Concluída | Editor `6000.6.8f1`; WebGL instalado; perfil ativo `Web - Desktop - Development` (target WebGL, development, compressão `Disabled`); console sem erros |
+| S0-03 | Concluída | `.gitignore` cobre `Library/`, `Temp/`, `Logs/`, `UserSettings/`; nenhum arquivo gerado versionado; Git LFS ativo para `*.png` |
+| S0-04 | Concluída | Recomendações do technical-artist registradas (nível de qualidade Web dedicado, alpha clip, blob shadow) — aplicação fica para sprints futuras |
+| S0-05 | Concluída | Cena Bootstrap + build Web Development (0 erros). Exigiu remover `com.unity.ai.inference` (plugin WebGL do `app-ui` quebrava a linkagem) |
+| S0-06 | Concluída | Smoke test local aprovado; clique confirmado manualmente. Pendentes fora do M0: outros navegadores, canvas responsivo, itch.io |
+
+**S0-05 — Bootstrap e primeiro build Web** (unity-developer)
+
+| Arquivo | Ação |
+|---|---|
+| `Assets/_Game/Scenes/Bootstrap.unity` (+ `.meta`) | Criar pelo Editor: câmera, luz direcional, Canvas (Canvas Scaler *Scale With Screen Size* 1280×720), um botão e um texto, EventSystem com `InputSystemUIInputModule` |
+| `Assets/_Game/Scripts/Presentation/SmokeTestButton.cs` (+ `.meta`) | Script mínimo: clique altera o texto e registra log. Sem regra de gameplay |
+| `ProjectSettings/EditorBuildSettings.asset` | `Bootstrap` como cena 0; `SampleScene` desabilitada (não excluída) |
+| `ProjectSettings/ProjectSettings.asset` | *Opcional, requer confirmação:* `defaultScreenWidthWeb/HeightWeb` = 1280×720 |
+| `Builds/Web/` | Saída do build (ignorada pelo Git) |
+
+**S0-06 — Baseline de QA** (qa-tester)
+
+| Arquivo | Ação |
+|---|---|
+| `docs/qa/S0-web-smoke-test.md` | Checklist com versão Unity, perfil, compressão, navegador/versão, URL, resultado por passo e mensagens do console; itens não executados marcados como "não executado" |
+
+**Dependências**
+- Nenhum pacote novo é necessário para S0-05.
+- Servidor HTTP local (`python -m http.server` ou `npx http-server`); compressão `Disabled` dispensa headers especiais. Nunca usar `file://`.
+- *Recomendado, com autorização separada:* declarar `com.unity.test-framework` em `Packages/manifest.json` para destravar a Sprint 1.
+- O teste em navegador depende de execução manual pelo usuário.
+
+**Critérios de aceitação (M0)**
+1. Projeto compila sem erros no console do Editor.
+2. Build Web (perfil `Web - Desktop - Development`) conclui sem erros.
+3. Página abre via `http://localhost` em pelo menos um navegador-alvo (Chrome, Firefox ou Edge).
+4. Botão responde ao clique; console do navegador sem erro fatal.
+5. UI utilizável em dois tamanhos de janela.
+6. Relatório `docs/qa/S0-web-smoke-test.md` discrimina testes executados e não executados.
+7. Nenhum commit sem autorização.
+
+**Riscos conhecidos**
+
+| Risco | Mitigação |
+|---|---|
+| Defines `SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY` no perfil Web; pacotes `ai.*` podem falhar ou inflar o build | Tentar o build; se falhar, solicitar autorização para remover pacotes de IA (atenção: `com.unity.ai.assistant` fornece o Unity MCP) |
+| Projeto dentro do OneDrive pode bloquear arquivos em `Library/`/`Temp/` | Decisão do usuário: mover o projeto ou pausar sincronização durante builds |
+| Editor usa qualidade `PC`; build Web usa `Mobile` | Não aprovar visual pelo Editor; criar nível "Web" em sprint futura |
+| Perfil Release usa Brotli sem fallback | Fora da Sprint 0; validar no itch.io (S5-03) |
+
+**Divergências documentais identificadas (S0-01)**
+- `docs/GDD.md` citado em CLAUDE.md, TDD e neste plano; arquivo real: `docs/GDD_Dont_Trust_Your_Luck_v0.2.md`.
+- Numeração de marcos diferente entre TDD §2 (M0–M3) e este plano (M0–M5).
+- D11 antecipa o bot para o M1, mas `S3-04` permanece na Sprint 3.
+- Estrutura de pastas: GDD §10 (`Assets/Scripts/`) vs. CLAUDE.md/TDD §12 (`Assets/_Game/`).
+- Nomes de cartas: GDD (Lucky Roll, Recuar −3) vs. TDD/plano (`reroll`, `move_back_3`).
+- GDD exige "Unity 6 LTS"; não confirmado se `6000.6` é LTS.
+
 ### Sprint 1 — Domínio e tabuleiro (F1)
 
 | ID | Tarefa | Agente líder | Dependência | Aceite |
