@@ -3,7 +3,10 @@
     "rootNamespace": "DontTrustYourLuck.EditorTools",
     "references": [
         "DontTrustYourLuck.Domain",
-        "DontTrustYourLuck.Runtime"
+        "DontTrustYourLuck.Runtime",
+        "DontTrustYourLuck.Gameplay",
+        "UnityEditor.TestRunner",
+        "UnityEngine.TestRunner"
     ],
     "includePlatforms": [
         "Editor"

@@ -1,0 +1,58 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace DontTrustYourLuck.Presentation.UI
+{
+    /// <summary>Top bar: lucky, unlucky, round and current player.</summary>
+    public sealed class MatchInfoView : MonoBehaviour
+    {
+        [SerializeField] private Text luckyLabel;
+        [SerializeField] private Text luckyValue;
+        [SerializeField] private Text unluckyLabel;
+        [SerializeField] private Text unluckyValue;
+        [SerializeField] private Text roundLabel;
+        [SerializeField] private Text roundValue;
+        [SerializeField] private Text turnLabel;
+        [SerializeField] private Text turnValue;
+        [SerializeField] private Image turnSwatch;
+
+        public void Bind(Text luckyL, Text luckyV, Text unluckyL, Text unluckyV, Text roundL, Text roundV,
+            Text turnL, Text turnV, Image swatch)
+        {
+            luckyLabel = luckyL; luckyValue = luckyV;
+            unluckyLabel = unluckyL; unluckyValue = unluckyV;
+            roundLabel = roundL; roundValue = roundV;
+            turnLabel = turnL; turnValue = turnV;
+            turnSwatch = swatch;
+        }
+
+        public void ApplyLabels(HudText text)
+        {
+            luckyLabel.text = text.luckyLabel;
+            unluckyLabel.text = text.unluckyLabel;
+            roundLabel.text = text.roundLabel;
+            turnLabel.text = text.turnLabel;
+        }
+
+        public void Show(HudText text, int lucky, int unlucky, int round, int maxRounds, string turnName, Color turnColor)
+        {
+            luckyValue.text = lucky > 0 ? lucky.ToString() : text.emptyValue;
+            unluckyValue.text = unlucky > 0 ? unlucky.ToString() : text.emptyValue;
+            roundValue.text = round > 0 ? string.Format(text.roundValue, round, maxRounds) : text.emptyValue;
+            turnValue.text = string.IsNullOrEmpty(turnName) ? text.emptyValue : turnName;
+            if (turnSwatch != null)
+            {
+                turnSwatch.enabled = !string.IsNullOrEmpty(turnName);
+                turnSwatch.color = turnColor;
+            }
+        }
+
+        public string LuckyText => luckyValue.text;
+        public string UnluckyText => unluckyValue.text;
+        public string RoundText => roundValue.text;
+        public string TurnText => turnValue.text;
+    }
+}
