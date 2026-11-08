@@ -2,6 +2,13 @@ using UnityEngine;
 
 namespace DontTrustYourLuck.Presentation.Board
 {
+    public enum PieceVisualState
+    {
+        Normal,
+        Eliminated,
+        Winner
+    }
+
     /// <summary>
     /// Placeholder player token. Holds a player id and the logical tile it represents; the Transform is
     /// only a projection of that value (never the source of truth). Positioning is done by BoardView.
@@ -35,18 +42,51 @@ namespace DontTrustYourLuck.Presentation.Board
             logicalPosition = tileIndex;
         }
 
+        /// <summary>Visual-only state: eliminated pieces lie down and fade to gray, winners grow.</summary>
+        public void SetVisualState(PieceVisualState state)
+        {
+            VisualState = state;
+            if (bodyRenderer == null) return;
+            var body = bodyRenderer.transform;
+            switch (state)
+            {
+                case PieceVisualState.Eliminated:
+                    body.localRotation = Quaternion.Euler(0f, 0f, 90f);
+                    body.localPosition = new Vector3(0f, 0.15f, 0f);
+                    transform.localScale = Vector3.one;
+                    ApplyTint(Color.Lerp(color, Color.gray, 0.75f));
+                    break;
+                case PieceVisualState.Winner:
+                    body.localRotation = Quaternion.identity;
+                    body.localPosition = new Vector3(0f, 0.25f, 0f);
+                    transform.localScale = Vector3.one * 1.4f;
+                    ApplyTint(color);
+                    break;
+                default:
+                    body.localRotation = Quaternion.identity;
+                    body.localPosition = new Vector3(0f, 0.25f, 0f);
+                    transform.localScale = Vector3.one;
+                    ApplyTint(color);
+                    break;
+            }
+        }
+
+        public PieceVisualState VisualState { get; private set; }
+
         private void Awake() => ApplyColor();
 
         private void OnValidate() => ApplyColor();
 
-        private void ApplyColor()
+        private void ApplyColor() => ApplyTint(color);
+
+        private void ApplyTint(Color tint)
         {
             if (bodyRenderer == null) return;
             // Per-instance tint without duplicating materials.
             _block ??= new MaterialPropertyBlock();
             bodyRenderer.GetPropertyBlock(_block);
-            _block.SetColor(BaseColorId, color);
-            _block.SetColor(ColorId, color);
+            _block.SetColor(BaseColorId, tint);
+            _block.SetColor(ColorId, tint);
             bodyRenderer.SetPropertyBlock(_block);
         }
 

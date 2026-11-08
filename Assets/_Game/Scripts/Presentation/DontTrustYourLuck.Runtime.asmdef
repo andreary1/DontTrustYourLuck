@@ -3,7 +3,8 @@
     "rootNamespace": "DontTrustYourLuck.Presentation",
     "references": [
         "DontTrustYourLuck.Domain",
-        "DontTrustYourLuck.Infrastructure"
+        "DontTrustYourLuck.Infrastructure",
+        "DontTrustYourLuck.Gameplay"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

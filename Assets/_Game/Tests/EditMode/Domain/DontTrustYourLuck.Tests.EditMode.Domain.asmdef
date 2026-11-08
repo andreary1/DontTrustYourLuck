@@ -5,7 +5,8 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "DontTrustYourLuck.Domain",
-        "DontTrustYourLuck.Infrastructure"
+        "DontTrustYourLuck.Infrastructure",
+        "DontTrustYourLuck.Gameplay"
     ],
     "includePlatforms": [
         "Editor"

@@ -28,6 +28,17 @@ namespace DontTrustYourLuck.Presentation.Board
             pitch = pitchDegrees;
         }
 
+        /// <summary>
+        /// Restricts rendering to a normalized screen rect (e.g. the area not covered by the HUD) and
+        /// re-frames the board inside it. Pixels outside must be cleared by another camera.
+        /// </summary>
+        public void SetViewport(Rect normalized)
+        {
+            if (Camera.rect == normalized) return;
+            Camera.rect = normalized;
+            Frame();
+        }
+
         private void Start() => Frame();
 
         private void LateUpdate()
