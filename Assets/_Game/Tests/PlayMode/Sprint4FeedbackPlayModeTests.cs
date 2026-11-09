@@ -7,6 +7,7 @@ using DontTrustYourLuck.Presentation.Audio;
 using DontTrustYourLuck.Presentation.Board;
 using DontTrustYourLuck.Presentation.Feedback;
 using DontTrustYourLuck.Presentation.Match;
+using DontTrustYourLuck.Presentation.UI;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -43,6 +44,7 @@ namespace DontTrustYourLuck.Tests.PlayMode
             var s = _audio.Settings; // restored in TearDown: the scene persists settings to PlayerPrefs
             _master = s.Master; _music = s.Music; _sfx = s.Sfx; _muted = s.Muted;
             yield return null;
+            if (_director.Hud.MainMenu != null) _director.Hud.MainMenu.SkipToGame(); // title screen: start the default match
             _director.SetTimings(0.01f, 0.01f, 0.01f, 0f);
         }
 
@@ -89,6 +91,8 @@ namespace DontTrustYourLuck.Tests.PlayMode
         [UnityTest]
         public IEnumerator BotMatch_PlaysCuesForTheMainEvents_AndActiveMarkerFollowsTheTurn()
         {
+            // The default match started in SetUp just played its cues; let their cooldowns (<= 0.3 s) expire.
+            yield return new WaitForSecondsRealtime(0.35f);
             var played = new List<SfxId>();
             void OnPlayed(SfxId id) => played.Add(id);
             _audio.Played += OnPlayed;

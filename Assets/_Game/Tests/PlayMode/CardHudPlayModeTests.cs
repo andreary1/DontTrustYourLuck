@@ -34,6 +34,7 @@ namespace DontTrustYourLuck.Tests.PlayMode
             _director = UnityEngine.Object.FindAnyObjectByType<MatchDirector>();
             Assert.IsNotNull(_director, "GameBoard scene has a MatchDirector");
             yield return null;
+            if (_director.Hud.MainMenu != null) _director.Hud.MainMenu.SkipToGame(); // title screen: start the default match
             _director.SetTimings(0.01f, 0.01f, 0.01f, 0f);
             Assert.IsNotNull(_director.Hud.CardHand, "HUD prefab has the card hand panel (run the Sprint 3 builder)");
         }
