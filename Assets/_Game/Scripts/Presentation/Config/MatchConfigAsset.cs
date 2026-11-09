@@ -1,4 +1,7 @@
+using System.Collections.Generic;
 using DontTrustYourLuck.Domain;
+using DontTrustYourLuck.Domain.Cards;
+using DontTrustYourLuck.Presentation.Cards;
 using UnityEngine;
 
 namespace DontTrustYourLuck.Presentation.Config
@@ -28,9 +31,27 @@ namespace DontTrustYourLuck.Presentation.Config
         [Header("Cards")]
         [Min(0)] [SerializeField] private int startingHandSize = MatchRulesConfig.DefaultStartingHandSize;
         [Min(0)] [SerializeField] private int maxHandSize = MatchRulesConfig.DefaultMaxHandSize;
+        [Tooltip("Cards available in the match. Empty: the default four MVP cards (rules only, no art).")]
+        [SerializeField] private List<CardDefinitionAsset> cards = new List<CardDefinitionAsset>();
 
         [Header("Rounds")]
         [Min(1)] [SerializeField] private int maxRounds = MatchRulesConfig.DefaultMaxRounds;
+
+        public IReadOnlyList<CardDefinitionAsset> Cards => cards;
+
+        /// <summary>Converts the card assets to the pure-domain catalog (default catalog when none are set).</summary>
+        public CardCatalog ToCardCatalog()
+        {
+            var definitions = new List<CardDefinition>();
+            foreach (var card in cards)
+            {
+                if (card != null) definitions.Add(card.ToDomain());
+            }
+            return definitions.Count > 0 ? new CardCatalog(definitions) : CardCatalog.CreateDefault();
+        }
+
+        /// <summary>Editor setup (Sprint 3 builder).</summary>
+        public void SetCards(IEnumerable<CardDefinitionAsset> assets) => cards = new List<CardDefinitionAsset>(assets);
 
         /// <summary>Creates a validated, immutable rules object. Throws ArgumentException if invalid.</summary>
         public MatchRulesConfig ToRulesConfig() => new MatchRulesConfig(

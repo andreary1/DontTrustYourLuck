@@ -11,6 +11,8 @@ namespace DontTrustYourLuck.Presentation.UI
         public bool IsBot;
         public int Position;
         public PlayerDisplayStatus Status;
+        /// <summary>Shield active for the next move (from ShieldActivated/ShieldConsumed events).</summary>
+        public bool Shielded;
     }
 
     public enum PlayerDisplayStatus
@@ -28,6 +30,7 @@ namespace DontTrustYourLuck.Presentation.UI
         public static readonly Color CardDisabled = Hex(0xBDB29A);
         public static readonly Color CardWinner = Hex(0xF9DE8E);
         public static readonly Color Ink = Hex(0x493329);
+        public static readonly Color InkFaded = Hex(0x7D6A5C);
         public static readonly Color Lucky = Hex(0xF4B942);
         public static readonly Color LuckyDark = Hex(0x8A5A00);
         public static readonly Color Danger = Hex(0xD83A35);
