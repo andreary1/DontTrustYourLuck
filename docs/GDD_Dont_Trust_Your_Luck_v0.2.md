@@ -124,6 +124,7 @@ Essas questões não devem ser codificadas como regras definitivas sem uma decis
 - Animações: idle, deslocamento, ação, vitória, eliminação.
 - **Elenco conceitual:** onça, arara, macaco, capivara, galo e serpente.
 - **MVP:** quatro personagens, sem habilidades exclusivas para evitar desequilíbrio.
+- **Elenco do MVP (decisão do usuário, Sprint 4 — 08/11/2026):** Onça, Capivara, Macaco e **Tucano**. O tucano não estava no elenco conceitual e entrou por pedido explícito do usuário; arara, galo e serpente ficam como extensões via `CharacterDefinitionAsset`. Convenção: nomes exibidos em português (com acento), ids em minúsculas sem acento (`onca`, `capivara`, `macaco`, `tucano`).
 
 ### 6.3 Paleta-base
 
