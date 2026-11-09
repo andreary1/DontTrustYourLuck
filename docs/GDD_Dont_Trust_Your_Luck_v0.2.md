@@ -70,8 +70,8 @@
 
 - ~~O tabuleiro termina no Lucky Number ou continua até a casa 30?~~ **Decidido (07/11/2026):** percurso físico 0–30 com rebote no Lucky Number. Testar em playtest se Lucky baixo (ex.: 15) deixa casas demais sem uso.
 - O que ocorre com números do azar atrás de todos os jogadores? **Proposta:** permitido no M1; avaliar em playtest.
-- Cartas podem causar eliminação imediata ao mover um oponente?
-- Quando se resolvem efeitos de casa, cartas e escudos?
+- ~~Cartas podem causar eliminação imediata ao mover um oponente?~~ **Decidido (08/11/2026):** não; Swap e Recuar não ativam sorte/azar.
+- ~~Quando se resolvem efeitos de casa, cartas e escudos?~~ **Decidido (08/11/2026):** ver TDD §9.3 e §10.2.
 - ~~Como impedir partidas travadas perto do alvo? Qual é o limite máximo de rodadas e qual desempate usar?~~ **Decidido (07/11/2026):** limite de 15 rodadas; vence o mais próximo do alvo; empate na mesma casa compartilha a vitória.
 - A versão final terá turnos individuais ou escolhas simultâneas? *(M1 usa turnos sequenciais.)*
 
@@ -93,7 +93,7 @@ Essas questões não devem ser codificadas como regras definitivas sem uma decis
 | Recuar −3 | Voltar três casas | Movimento |
 | Coruja | Revelar próximo número do azar | Informação |
 
-**MVP recomendado:** Lucky Roll, Swap, Recuar −3 e Shield. As regras de alvo, duração e resolução precisam de playtest.
+**MVP (Decidido 08/11/2026):** Lucky Roll, Swap, Recuar −3 e Shield. Tabela de regras em TDD §10.2; continuam sujeitas a ajuste após playtest.
 
 ## 5. Eventos e variantes (fora do MVP)
 
@@ -323,7 +323,7 @@ Assets/
 
 ## 15. Próximas decisões
 
-1. Fechar eliminação por cartas. *(Rebote e alcance do tabuleiro decididos em 07/11/2026.)*
+1. ~~Fechar eliminação por cartas.~~ **Decidido em 08/11/2026** (TDD §10.2). *(Rebote e alcance do tabuleiro decididos em 07/11/2026.)*
 2. Decidir turnos versus simultâneo para a versão final.
 3. Definir entrada e tela de seleção de jogadores. *(Modo M1 decidido: hot-seat + bot simples.)*
 4. Confirmar versão exata do Unity 6 LTS, URP e Build Profile Web; **WebGL já está definido como plataforma-alvo**.
