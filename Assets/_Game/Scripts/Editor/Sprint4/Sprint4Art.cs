@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using DontTrustYourLuck.Presentation.Art;
 using UnityEditor;
 using UnityEngine;
 
@@ -20,23 +21,24 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
         public const string MaterialsDir = "Assets/_Game/Art/Materials";
 
         // Palette (GDD §6.3) plus a few derived shades.
-        public static readonly Color32 Ink = PixelCanvas.Hex(0x493329);
-        public static readonly Color32 InkDeep = PixelCanvas.Hex(0x2E211B);
-        public static readonly Color32 Paper = PixelCanvas.Hex(0xE9D7AC);
-        public static readonly Color32 PaperLight = PixelCanvas.Hex(0xF4E9CC);
-        public static readonly Color32 PaperDark = PixelCanvas.Hex(0xD4BF8E);
-        public static readonly Color32 Gold = PixelCanvas.Hex(0xF4B942);
-        public static readonly Color32 GoldDark = PixelCanvas.Hex(0xB07A12);
-        public static readonly Color32 Red = PixelCanvas.Hex(0xD83A35);
-        public static readonly Color32 RedDark = PixelCanvas.Hex(0x8E2320);
-        public static readonly Color32 Green = PixelCanvas.Hex(0x438B52);
-        public static readonly Color32 GreenDark = PixelCanvas.Hex(0x2C5E37);
-        public static readonly Color32 Blue = PixelCanvas.Hex(0x287FA3);
-        public static readonly Color32 BlueDark = PixelCanvas.Hex(0x1B5670);
-        public static readonly Color32 Pink = PixelCanvas.Hex(0xED638B);
-        public static readonly Color32 Purple = PixelCanvas.Hex(0x713E91);
-        public static readonly Color32 White = PixelCanvas.Hex(0xFBF6E9);
-        public static readonly Color32 Terracotta = PixelCanvas.Hex(0xB5523B);
+        // Palette tokens: values live in GamePalette (shared with the HUD); local names kept for the painters.
+        public static readonly Color32 Ink = GamePalette.InkBrown;
+        public static readonly Color32 InkDeep = GamePalette.InkDeep;
+        public static readonly Color32 Paper = GamePalette.AgedCream;
+        public static readonly Color32 PaperLight = GamePalette.PaperLight;
+        public static readonly Color32 PaperDark = GamePalette.PaperDark;
+        public static readonly Color32 Gold = GamePalette.SolarYellow;
+        public static readonly Color32 GoldDark = GamePalette.SolarYellowDark;
+        public static readonly Color32 Red = GamePalette.TropicalRed;
+        public static readonly Color32 RedDark = GamePalette.TropicalRedDark;
+        public static readonly Color32 Green = GamePalette.LeafGreen;
+        public static readonly Color32 GreenDark = GamePalette.LeafGreenDark;
+        public static readonly Color32 Blue = GamePalette.ColonialBlue;
+        public static readonly Color32 BlueDark = GamePalette.ColonialBlueDark;
+        public static readonly Color32 Pink = GamePalette.HibiscusPink;
+        public static readonly Color32 Purple = GamePalette.MysticPurple;
+        public static readonly Color32 White = GamePalette.PaperWhite;
+        public static readonly Color32 Terracotta = GamePalette.Terracotta;
         public static readonly Color32 Clear = new Color32(0, 0, 0, 0);
 
         // ================================================================== characters
@@ -75,7 +77,7 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
 
             string cutoutPath = $"{CharactersDir}/SPR_Char_{Cap(id)}.png";
             c.SavePng(cutoutPath);
-            ImportTexture(cutoutPath, TextureWrapMode.Clamp, false, 128, true);
+            ImportCharacterCutout(cutoutPath);
 
             // Portrait: head crop on a colored medallion.
             var p = new PixelCanvas(48, 48, 7u);
@@ -302,7 +304,7 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
                 Paper = Frame("Paper", Paper, Ink, Gold, Gold, 1),
                 PaperDark = Frame("PaperDark", PaperDark, InkDeep, Terracotta, Green, 2),
                 Lucky = Frame("FrameLucky", PaperLight, GoldDark, Green, Pink, 3, thick: 2),
-                Unlucky = Frame("FrameUnlucky", PixelCanvas.Hex(0xF3DCCD), RedDark, Purple, Red, 4, thick: 2),
+                Unlucky = Frame("FrameUnlucky", GamePalette.PaperRose, RedDark, Purple, Red, 4, thick: 2),
                 Title = Frame("TitlePlaque", PaperLight, InkDeep, Red, Pink, 5, thick: 2),
                 Banner = Frame("Banner", PaperLight, InkDeep, Gold, Red, 6, thick: 2),
                 Card = Frame("CardFrame", White, InkDeep, Ink, Gold, 7, lace: false),
@@ -572,7 +574,7 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
             draw(c);
             string path = $"{EnvDir}/{name}.png";
             c.SavePng(path);
-            ImportTexture(path, repeat ? TextureWrapMode.Repeat : TextureWrapMode.Clamp, true, Mathf.Max(w, h), false);
+            ImportEnvironmentTexture(path, w, h, repeat);
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         }
 
@@ -833,11 +835,7 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
             if (m.HasProperty("_BaseMap")) m.SetTextureScale("_BaseMap", scale);
             if (m.HasProperty("_MainTex")) m.SetTextureScale("_MainTex", scale);
             if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", smoothness);
-            if (m.HasProperty("_SpecularHighlights")) m.SetFloat("_SpecularHighlights", 0f);
-            m.DisableKeyword("_SPECULAR_COLOR");
-            if (m.HasProperty("_EnvironmentReflections")) m.SetFloat("_EnvironmentReflections", 0f);
-            m.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
-            m.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            DisableSpecular(m);
             if (m.HasProperty("_AlphaClip")) m.SetFloat("_AlphaClip", alphaClip ? 1f : 0f);
             if (m.HasProperty("_Cutoff")) m.SetFloat("_Cutoff", 0.5f);
             if (alphaClip)
@@ -855,6 +853,27 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
             if (m.HasProperty("_Cull")) m.SetFloat("_Cull", twoSided ? 0f : 2f);
             m.enableInstancing = true;
             EditorUtility.SetDirty(m);
+        }
+
+        /// <summary>
+        /// Matte look: no specular highlight and no environment reflection. URP reuses the name
+        /// <c>_SpecularHighlights</c> with opposite meanings: on Lit it is a toggle (0 = off); on Simple Lit it is the
+        /// SpecularSource enum (0 = specular colour ON, 1 = no specular). Writing 0 on Simple Lit left a grey
+        /// <c>_SpecColor</c> highlight on every material (Graphics F0, finding 4).
+        /// </summary>
+        public static void DisableSpecular(Material m)
+        {
+            bool simpleLit = m.shader != null && m.shader.name == SimpleLit;
+            if (m.HasProperty("_SpecularHighlights")) m.SetFloat("_SpecularHighlights", simpleLit ? 1f : 0f);
+            if (simpleLit)
+            {
+                m.DisableKeyword("_SPECULAR_COLOR");
+                m.DisableKeyword("_SPECGLOSSMAP");
+                m.DisableKeyword("_GLOSSINESS_FROM_BASE_ALPHA");
+            }
+            if (m.HasProperty("_EnvironmentReflections")) m.SetFloat("_EnvironmentReflections", 0f);
+            m.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
+            m.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
         }
 
         /// <summary>URP Unlit transparent (alpha blend) material: used only for the shield aura.</summary>
@@ -936,6 +955,29 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
             return AssetDatabase.LoadAssetAtPath<Sprite>(path);
         }
 
+        /// <summary>
+        /// Generated pixel art up to this size is imported uncompressed: DXT blocks smear 1-px outlines and gradients
+        /// (Graphics F1). Characters (96x128) and the sky (256x96) cost under 100 KB each uncompressed.
+        /// </summary>
+        public const int UncompressedMaxSize = 256;
+
+        /// <summary>Import settings of a character cutout (shared by the generator and the Graphics F1 apply step).</summary>
+        public static void ImportCharacterCutout(string path) => ImportTexture(path, TextureWrapMode.Clamp, false, CharH, true);
+
+        /// <summary>
+        /// Board tile textures: Point without mipmaps (Graphics F1 A/B: with mipmaps the foreshortened back rows drop
+        /// to a smaller mip and lose their pattern; the board camera is fixed, so there is no camera shimmer).
+        /// </summary>
+        public const string BoardTilePrefix = "T_Tile_";
+
+        /// <summary>
+        /// Import settings of an environment/tile texture of the given source size. Board tiles have no mipmaps; the
+        /// rest of the scenery keeps them (repeating ground and facades seen at grazing angles).
+        /// </summary>
+        public static void ImportEnvironmentTexture(string path, int width, int height, bool repeat) =>
+            ImportTexture(path, repeat ? TextureWrapMode.Repeat : TextureWrapMode.Clamp,
+                !Path.GetFileName(path).StartsWith(BoardTilePrefix, System.StringComparison.Ordinal), Mathf.Max(width, height), false);
+
         public static void ImportTexture(string path, TextureWrapMode wrap, bool mips, int maxSize, bool alpha)
         {
             var importer = (TextureImporter)AssetImporter.GetAtPath(path);
@@ -946,7 +988,7 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
             importer.alphaSource = alpha ? TextureImporterAlphaSource.FromInput : TextureImporterAlphaSource.None;
             importer.wrapMode = wrap;
             importer.sRGBTexture = true;
-            importer.textureCompression = maxSize <= 64 ? TextureImporterCompression.Uncompressed : TextureImporterCompression.Compressed;
+            importer.textureCompression = maxSize <= UncompressedMaxSize ? TextureImporterCompression.Uncompressed : TextureImporterCompression.Compressed;
             importer.maxTextureSize = Mathf.ClosestPowerOfTwo(Mathf.Max(32, maxSize)) < maxSize ? Mathf.NextPowerOfTwo(maxSize) : Mathf.ClosestPowerOfTwo(Mathf.Max(32, maxSize));
             importer.SaveAndReimport();
         }
