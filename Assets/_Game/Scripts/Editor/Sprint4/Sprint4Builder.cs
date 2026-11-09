@@ -1,3 +1,4 @@
+using DontTrustYourLuck.EditorTools.Menu;
 using UnityEditor;
 using UnityEngine;
 
@@ -33,7 +34,9 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
 
             Sprint3CardsBuilder.BuildFromCommandLine(); // cards + Sprint 2 HUD prefab and scene wiring
             Sprint4Hud.Restyle(ui, characters);
+            MainMenuBuilder.Build(ui); // title screen over the diorama (after the HUD restyle)
             Sprint4Scene.BuildScene(env, ui, characterAssets, library);
+            MainMenuBuilder.ConfigureScene(); // match waits for the menu's Play
             AssetDatabase.SaveAssets();
             Debug.Log("[Sprint4Builder] Art, audio, HUD and GameBoard scene generated.");
         }

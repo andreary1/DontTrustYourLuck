@@ -49,7 +49,7 @@ namespace DontTrustYourLuck.Presentation.UI
 
         private void Awake()
         {
-            toggleButton.onClick.AddListener(TogglePopover);
+            if (toggleButton != null) toggleButton.onClick.AddListener(TogglePopover); // optional (menu panel)
             masterSlider.onValueChanged.AddListener(v => { if (!_suppress) MasterChanged?.Invoke(v); });
             musicSlider.onValueChanged.AddListener(v => { if (!_suppress) MusicChanged?.Invoke(v); });
             sfxSlider.onValueChanged.AddListener(v => { if (!_suppress) SfxChanged?.Invoke(v); });
@@ -74,7 +74,7 @@ namespace DontTrustYourLuck.Presentation.UI
             musicLabel.text = text.audioMusic;
             sfxLabel.text = text.audioSfx;
             muteLabel.text = text.audioMute;
-            toggleLabel.text = text.audioButton;
+            if (toggleLabel != null) toggleLabel.text = text.audioButton;
         }
 
         public void TogglePopover() => popover.SetActive(!popover.activeSelf);
@@ -87,7 +87,7 @@ namespace DontTrustYourLuck.Presentation.UI
             musicSlider.SetValueWithoutNotify(music);
             sfxSlider.SetValueWithoutNotify(sfx);
             muteToggle.SetIsOnWithoutNotify(muted);
-            if (_text != null) toggleLabel.text = muted ? _text.audioButtonMuted : _text.audioButton;
+            if (_text != null && toggleLabel != null) toggleLabel.text = muted ? _text.audioButtonMuted : _text.audioButton;
             _suppress = false;
         }
     }

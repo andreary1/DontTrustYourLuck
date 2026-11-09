@@ -16,10 +16,15 @@ namespace DontTrustYourLuck.Presentation.UI
         [SerializeField] private Button playAgainButton;
         [SerializeField] private Text playAgainLabel;
 
+        [SerializeField] private Button menuButton;
+        [SerializeField] private Text menuLabel;
+
         public event Action PlayAgainClicked;
+        public event Action MenuClicked;
 
         public bool IsVisible => root != null && root.activeSelf;
         public Button PlayAgainButton => playAgainButton;
+        public Button MenuButton => menuButton;
         public string Title => titleText.text;
 
         public void Bind(GameObject rootObject, Text title, Text reason, Image[] swatches, Button playAgain, Text playAgainText)
@@ -28,16 +33,33 @@ namespace DontTrustYourLuck.Presentation.UI
             winnerSwatches = swatches; playAgainButton = playAgain; playAgainLabel = playAgainText;
         }
 
-        private void Awake() => playAgainButton.onClick.AddListener(OnPlayAgain);
+        /// <summary>Optional "Main Menu" button (main menu pass).</summary>
+        public void BindMenuButton(Button button, Text label)
+        {
+            menuButton = button;
+            menuLabel = label;
+        }
+
+        private void Awake()
+        {
+            playAgainButton.onClick.AddListener(OnPlayAgain);
+            if (menuButton != null) menuButton.onClick.AddListener(OnMenu);
+        }
 
         private void OnDestroy()
         {
             if (playAgainButton != null) playAgainButton.onClick.RemoveListener(OnPlayAgain);
+            if (menuButton != null) menuButton.onClick.RemoveListener(OnMenu);
         }
 
         private void OnPlayAgain() => PlayAgainClicked?.Invoke();
+        private void OnMenu() => MenuClicked?.Invoke();
 
-        public void ApplyLabels(HudText text) => playAgainLabel.text = text.playAgainButton;
+        public void ApplyLabels(HudText text)
+        {
+            playAgainLabel.text = text.playAgainButton;
+            if (menuLabel != null) menuLabel.text = text.mainMenuButton;
+        }
 
         public void Show(string title, string reason, IReadOnlyList<Color> winnerColors)
         {

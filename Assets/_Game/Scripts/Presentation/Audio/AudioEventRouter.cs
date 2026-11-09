@@ -72,8 +72,7 @@ namespace DontTrustYourLuck.Presentation.Audio
                 hud.CardCancelRequested += OnCardCancel;
                 hud.PlayAgainRequested += OnPlayAgain;
                 if (hud.DicePanel != null) hud.DicePanel.RollAnimationFinished += OnRollFinished;
-                var view = hud.AudioSettings;
-                if (view != null)
+                foreach (var view in hud.AudioSettingsViews)
                 {
                     view.MasterChanged += audioManager.Settings.SetMaster;
                     view.MusicChanged += audioManager.Settings.SetMusic;
@@ -100,8 +99,8 @@ namespace DontTrustYourLuck.Presentation.Audio
                 hud.CardCancelRequested -= OnCardCancel;
                 hud.PlayAgainRequested -= OnPlayAgain;
                 if (hud.DicePanel != null) hud.DicePanel.RollAnimationFinished -= OnRollFinished;
-                var view = hud.AudioSettings;
-                if (view != null && audioManager != null)
+                if (audioManager != null)
+                foreach (var view in hud.AudioSettingsViews)
                 {
                     view.MasterChanged -= audioManager.Settings.SetMaster;
                     view.MusicChanged -= audioManager.Settings.SetMusic;
@@ -114,9 +113,9 @@ namespace DontTrustYourLuck.Presentation.Audio
 
         private void RefreshSettingsView()
         {
-            if (hud == null || hud.AudioSettings == null || audioManager == null) return;
+            if (hud == null || audioManager == null) return;
             var s = audioManager.Settings;
-            hud.AudioSettings.ShowValues(s.Master, s.Music, s.Sfx, s.Muted);
+            foreach (var view in hud.AudioSettingsViews) view.ShowValues(s.Master, s.Music, s.Sfx, s.Muted);
         }
 
         // ------------------------------------------------------------ match events

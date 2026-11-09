@@ -22,6 +22,7 @@ namespace DontTrustYourLuck.Presentation.UI
         public string dieA = "A";
         public string dieB = "B";
         public string playAgainButton = "Play Again";
+        public string mainMenuButton = "Main Menu";
         public string playersTitle = "PLAYERS";
         public string messagesTitle = "LOG";
         public string gameTitle = "Don't Trust Your Luck!";

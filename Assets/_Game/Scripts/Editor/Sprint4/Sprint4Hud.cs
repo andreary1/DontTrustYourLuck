@@ -342,7 +342,7 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
             return view;
         }
 
-        private static Slider BuildSlider(string name, Transform parent, Sprint4Art.UiArt ui)
+        internal static Slider BuildSlider(string name, Transform parent, Sprint4Art.UiArt ui)
         {
             var rt = Rect(name, parent);
             var bg = MakeImage("Background", rt, Color.white, ui.Bar);

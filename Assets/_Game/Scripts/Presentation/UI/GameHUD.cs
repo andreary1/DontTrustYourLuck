@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -23,6 +24,9 @@ namespace DontTrustYourLuck.Presentation.UI
         [SerializeField] private AudioSettingsView audioSettings;
         [SerializeField] private Text titleText;
         [SerializeField] private Text subtitleText;
+        [Header("Main menu (optional)")]
+        [SerializeField] private MainMenuView mainMenu;
+        [SerializeField] private AudioSettingsView menuAudioSettings;
 
         [Header("Board viewport (areas covered by the HUD)")]
         [SerializeField] private RectTransform topBar;
@@ -39,10 +43,30 @@ namespace DontTrustYourLuck.Presentation.UI
         public event Action<int> CardTargetClicked;
         public event Action CardPlayRequested;
         public event Action CardCancelRequested;
+        /// <summary>The main menu asked for a match (Play). The director starts or restarts it.</summary>
+        public event Action StartGameRequested;
 
         public CardHandView CardHand => cardHand;
         public FeedbackBannerView Banner => banner;
         public AudioSettingsView AudioSettings => audioSettings;
+        public MainMenuView MainMenu => mainMenu;
+
+        /// <summary>Every audio settings view (HUD popover and menu options panel), so all stay in sync.</summary>
+        public IReadOnlyList<AudioSettingsView> AudioSettingsViews
+        {
+            get
+            {
+                if (_audioViews == null)
+                {
+                    _audioViews = new List<AudioSettingsView>(2);
+                    if (audioSettings != null) _audioViews.Add(audioSettings);
+                    if (menuAudioSettings != null) _audioViews.Add(menuAudioSettings);
+                }
+                return _audioViews;
+            }
+        }
+
+        private List<AudioSettingsView> _audioViews;
 
         public HudText Text => text;
         public MatchInfoView MatchInfo => matchInfo;
@@ -72,12 +96,21 @@ namespace DontTrustYourLuck.Presentation.UI
             subtitleText = subtitle;
         }
 
+        public void BindMainMenu(MainMenuView menu, AudioSettingsView menuAudio)
+        {
+            mainMenu = menu;
+            menuAudioSettings = menuAudio;
+            _audioViews = null;
+        }
+
         private void Awake()
         {
             ApplyLabels();
             dicePanel.RollClicked += OnRoll;
             dicePanel.ChooseClicked += OnChoose;
             resultScreen.PlayAgainClicked += OnPlayAgain;
+            resultScreen.MenuClicked += OnMainMenu;
+            if (mainMenu != null) mainMenu.StartGameRequested += OnStartGame;
             resultScreen.Hide();
             if (cardHand != null)
             {
@@ -95,7 +128,12 @@ namespace DontTrustYourLuck.Presentation.UI
                 dicePanel.RollClicked -= OnRoll;
                 dicePanel.ChooseClicked -= OnChoose;
             }
-            if (resultScreen != null) resultScreen.PlayAgainClicked -= OnPlayAgain;
+            if (resultScreen != null)
+            {
+                resultScreen.PlayAgainClicked -= OnPlayAgain;
+                resultScreen.MenuClicked -= OnMainMenu;
+            }
+            if (mainMenu != null) mainMenu.StartGameRequested -= OnStartGame;
             if (cardHand != null)
             {
                 cardHand.CardClicked -= OnCardClicked;
@@ -114,6 +152,8 @@ namespace DontTrustYourLuck.Presentation.UI
             resultScreen.ApplyLabels(text);
             if (cardHand != null) cardHand.ApplyLabels(text);
             if (audioSettings != null) audioSettings.ApplyLabels(text);
+            if (menuAudioSettings != null) menuAudioSettings.ApplyLabels(text);
+            if (mainMenu != null) mainMenu.ApplyLabels();
             if (titleText != null) titleText.text = text.gameTitle;
             if (subtitleText != null) subtitleText.text = text.gameSubtitle;
         }
@@ -126,6 +166,12 @@ namespace DontTrustYourLuck.Presentation.UI
         private void OnRoll() => RollRequested?.Invoke();
         private void OnChoose(int index) => DieChosen?.Invoke(index);
         private void OnPlayAgain() => PlayAgainRequested?.Invoke();
+        private void OnStartGame() => StartGameRequested?.Invoke();
+
+        private void OnMainMenu()
+        {
+            if (mainMenu != null) mainMenu.Show();
+        }
 
         /// <summary>
         /// Normalized screen rect not covered by the HUD columns/top bar, so the board camera can frame
