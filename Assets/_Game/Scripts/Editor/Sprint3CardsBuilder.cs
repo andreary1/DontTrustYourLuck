@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using DontTrustYourLuck.Domain.Cards;
+using DontTrustYourLuck.Presentation.Art;
 using DontTrustYourLuck.Presentation.Cards;
 using DontTrustYourLuck.Presentation.Config;
 using UnityEditor;
@@ -24,17 +25,17 @@ namespace DontTrustYourLuck.EditorTools
         private const string ConfigPath = "Assets/_Game/Data/DefaultMatchConfig.asset";
         private const int Size = 64;
 
-        private static readonly Color32 Paper = Hex(0xE9D7AC);
-        private static readonly Color32 PaperLight = Hex(0xF4E9CC);
-        private static readonly Color32 PaperDark = Hex(0xD4BF8E);
-        private static readonly Color32 Ink = Hex(0x493329);
-        private static readonly Color32 Gold = Hex(0xF4B942);
-        private static readonly Color32 GoldDark = Hex(0x8A5A00);
-        private static readonly Color32 Red = Hex(0xD83A35);
-        private static readonly Color32 Green = Hex(0x438B52);
-        private static readonly Color32 Blue = Hex(0x287FA3);
-        private static readonly Color32 Pink = Hex(0xED638B);
-        private static readonly Color32 Purple = Hex(0x713E91);
+        private static readonly Color32 Paper = GamePalette.AgedCream;
+        private static readonly Color32 PaperLight = GamePalette.PaperLight;
+        private static readonly Color32 PaperDark = GamePalette.PaperDark;
+        private static readonly Color32 Ink = GamePalette.InkBrown;
+        private static readonly Color32 Gold = GamePalette.SolarYellow;
+        private static readonly Color32 GoldDark = GamePalette.GoldInk;
+        private static readonly Color32 Red = GamePalette.TropicalRed;
+        private static readonly Color32 Green = GamePalette.LeafGreen;
+        private static readonly Color32 Blue = GamePalette.ColonialBlue;
+        private static readonly Color32 Pink = GamePalette.HibiscusPink;
+        private static readonly Color32 Purple = GamePalette.MysticPurple;
 
         private sealed class CardSpec
         {
@@ -282,8 +283,6 @@ namespace DontTrustYourLuck.EditorTools
         }
 
         // ------------------------------------------------------------------ helpers
-
-        private static Color32 Hex(int rgb) => new Color32((byte)((rgb >> 16) & 0xFF), (byte)((rgb >> 8) & 0xFF), (byte)(rgb & 0xFF), 255);
 
         private static void EnsureFolder(string path)
         {

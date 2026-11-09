@@ -6,6 +6,7 @@ using DontTrustYourLuck.Domain.Cards;
 using DontTrustYourLuck.Domain.Match;
 using DontTrustYourLuck.Gameplay;
 using DontTrustYourLuck.Infrastructure;
+using DontTrustYourLuck.Presentation.Art;
 using DontTrustYourLuck.Presentation.Board;
 using DontTrustYourLuck.Presentation.Cards;
 using DontTrustYourLuck.Presentation.Config;
@@ -36,10 +37,10 @@ namespace DontTrustYourLuck.Presentation.Match
         [Header("Participants (count must respect MatchRulesConfig)")]
         [SerializeField] private List<ParticipantConfig> participants = new List<ParticipantConfig>
         {
-            new ParticipantConfig("Onça", HudPalette.Hex(0xF4B942), false),
-            new ParticipantConfig("Capivara", HudPalette.Hex(0x287FA3), true),
-            new ParticipantConfig("Macaco", HudPalette.Hex(0x438B52), true),
-            new ParticipantConfig("Tucano", HudPalette.Hex(0xED638B), true),
+            new ParticipantConfig("Onça", GamePalette.SolarYellow, false),
+            new ParticipantConfig("Capivara", GamePalette.ColonialBlue, true),
+            new ParticipantConfig("Macaco", GamePalette.LeafGreen, true),
+            new ParticipantConfig("Tucano", GamePalette.HibiscusPink, true),
         };
 
         [Header("Randomness")]

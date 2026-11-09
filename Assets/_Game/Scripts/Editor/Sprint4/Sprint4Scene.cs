@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using DontTrustYourLuck.Presentation.Art;
 using DontTrustYourLuck.Presentation.Audio;
 using DontTrustYourLuck.Presentation.Board;
 using DontTrustYourLuck.Presentation.Characters;
@@ -470,10 +471,10 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
 
             var seats = new List<ParticipantConfig>
             {
-                new ParticipantConfig("Onça", HudPalette.Hex(0xF4B942), false, characters.ElementAtOrDefault(0)),
-                new ParticipantConfig("Capivara", HudPalette.Hex(0x287FA3), true, characters.ElementAtOrDefault(1)),
-                new ParticipantConfig("Macaco", HudPalette.Hex(0x438B52), true, characters.ElementAtOrDefault(2)),
-                new ParticipantConfig("Tucano", HudPalette.Hex(0xED638B), true, characters.ElementAtOrDefault(3)),
+                new ParticipantConfig("Onça", GamePalette.SolarYellow, false, characters.ElementAtOrDefault(0)),
+                new ParticipantConfig("Capivara", GamePalette.ColonialBlue, true, characters.ElementAtOrDefault(1)),
+                new ParticipantConfig("Macaco", GamePalette.LeafGreen, true, characters.ElementAtOrDefault(2)),
+                new ParticipantConfig("Tucano", GamePalette.HibiscusPink, true, characters.ElementAtOrDefault(3)),
             };
 
             var prefab = AssetDatabase.LoadAssetAtPath<PlayerPieceView>(PiecePrefabPath);
