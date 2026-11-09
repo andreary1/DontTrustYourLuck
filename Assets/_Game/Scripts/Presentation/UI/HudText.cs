@@ -30,7 +30,22 @@ namespace DontTrustYourLuck.Presentation.UI
         public string statusActive = "Active";
         public string statusEliminated = "Eliminated";
         public string statusWinner = "Winner";
+        public string statusShielded = "Shielded";
         public string botTag = "{0} (Bot)";
+
+        [Header("Cards")]
+        public string cardsTitle = "CARDS";
+        public string cardsTitleOwner = "{0}'s cards";
+        public string noCards = "No cards in hand.";
+        public string playCardButton = "Play card";
+        public string cancelCardButton = "Cancel";
+        public string hintPickCard = "Pick a card (one per turn).";
+        public string hintPickTarget = "{0}: pick a player to swap with.";
+        public string hintConfirm = "Play {0}?";
+        public string hintCardUsed = "Card already used this turn.";
+        public string hintNoPlayable = "No card can be played now.";
+        public string hintBotHand = "{0} plays with dice only.";
+        public string hintWaiting = "";
 
         [Header("Messages")]
         public string matchStarted = "The lucky number is {0}!";
@@ -44,6 +59,15 @@ namespace DontTrustYourLuck.Presentation.UI
         public string playerEliminated = "{0} landed on {1} and is eliminated!";
         public string playerWon = "{0} wins!";
         public string botThinking = "{0} is thinking...";
+        public string luckyRollActivated = "{0}: Lucky Roll activated!";
+        public string diceRerolled = "New dice: {0} and {1}.";
+        public string positionsSwapped = "{0} swapped positions with {1}!";
+        public string playerRetreated = "{0} moved back {1} tiles!";
+        public string playerRetreatedNone = "{0} is already at the start: no tiles to move back.";
+        public string shieldActivated = "{0} activated Shield!";
+        public string shieldBlocked = "Shield blocked elimination! {0} is safe on tile {1}.";
+        public string shieldExpired = "{0}'s Shield expired.";
+        public string cardGranted = "{0} received {1}.";
 
         [Header("Result screen")]
         public string resultSingleWinner = "{0} wins!";

@@ -15,15 +15,26 @@ namespace DontTrustYourLuck.Presentation.UI
         [SerializeField] private DicePanelView dicePanel;
         [SerializeField] private MessagePanelView messages;
         [SerializeField] private ResultScreenView resultScreen;
+        [Tooltip("Hand panel (Sprint 3). Optional: without it the match runs dice-only in the HUD.")]
+        [SerializeField] private CardHandView cardHand;
 
         [Header("Board viewport (areas covered by the HUD)")]
         [SerializeField] private RectTransform topBar;
         [SerializeField] private RectTransform leftColumn;
         [SerializeField] private RectTransform rightColumn;
+        [SerializeField] private RectTransform bottomBar;
 
         public event Action RollRequested;
         public event Action<int> DieChosen;
         public event Action PlayAgainRequested;
+        /// <summary>Hand slot index clicked.</summary>
+        public event Action<int> CardSlotClicked;
+        /// <summary>Target player id clicked.</summary>
+        public event Action<int> CardTargetClicked;
+        public event Action CardPlayRequested;
+        public event Action CardCancelRequested;
+
+        public CardHandView CardHand => cardHand;
 
         public HudText Text => text;
         public MatchInfoView MatchInfo => matchInfo;
@@ -39,6 +50,12 @@ namespace DontTrustYourLuck.Presentation.UI
             topBar = top; leftColumn = left; rightColumn = right;
         }
 
+        public void BindCards(CardHandView hand, RectTransform bottom)
+        {
+            cardHand = hand;
+            bottomBar = bottom;
+        }
+
         private void Awake()
         {
             ApplyLabels();
@@ -46,6 +63,13 @@ namespace DontTrustYourLuck.Presentation.UI
             dicePanel.ChooseClicked += OnChoose;
             resultScreen.PlayAgainClicked += OnPlayAgain;
             resultScreen.Hide();
+            if (cardHand != null)
+            {
+                cardHand.CardClicked += OnCardClicked;
+                cardHand.TargetClicked += OnTargetClicked;
+                cardHand.PlayClicked += OnCardPlay;
+                cardHand.CancelClicked += OnCardCancel;
+            }
         }
 
         private void OnDestroy()
@@ -56,6 +80,13 @@ namespace DontTrustYourLuck.Presentation.UI
                 dicePanel.ChooseClicked -= OnChoose;
             }
             if (resultScreen != null) resultScreen.PlayAgainClicked -= OnPlayAgain;
+            if (cardHand != null)
+            {
+                cardHand.CardClicked -= OnCardClicked;
+                cardHand.TargetClicked -= OnTargetClicked;
+                cardHand.PlayClicked -= OnCardPlay;
+                cardHand.CancelClicked -= OnCardCancel;
+            }
         }
 
         public void ApplyLabels()
@@ -65,7 +96,13 @@ namespace DontTrustYourLuck.Presentation.UI
             dicePanel.ApplyLabels(text);
             messages.ApplyLabels(text);
             resultScreen.ApplyLabels(text);
+            if (cardHand != null) cardHand.ApplyLabels(text);
         }
+
+        private void OnCardClicked(int slot) => CardSlotClicked?.Invoke(slot);
+        private void OnTargetClicked(int playerId) => CardTargetClicked?.Invoke(playerId);
+        private void OnCardPlay() => CardPlayRequested?.Invoke();
+        private void OnCardCancel() => CardCancelRequested?.Invoke();
 
         private void OnRoll() => RollRequested?.Invoke();
         private void OnChoose(int index) => DieChosen?.Invoke(index);
@@ -82,10 +119,12 @@ namespace DontTrustYourLuck.Presentation.UI
             float xMin = leftColumn != null ? ScreenRect(leftColumn).xMax / w : 0f;
             float xMax = rightColumn != null ? ScreenRect(rightColumn).xMin / w : 1f;
             float yMax = topBar != null ? ScreenRect(topBar).yMin / h : 1f;
+            float yMin = bottomBar != null && bottomBar.gameObject.activeInHierarchy ? ScreenRect(bottomBar).yMax / h : 0f;
             xMin = Mathf.Clamp01(xMin);
             xMax = Mathf.Clamp(xMax, xMin + 0.1f, 1f);
             yMax = Mathf.Clamp(yMax, 0.2f, 1f);
-            return new Rect(xMin, 0f, xMax - xMin, yMax);
+            yMin = Mathf.Clamp(yMin, 0f, yMax - 0.15f);
+            return new Rect(xMin, yMin, xMax - xMin, yMax - yMin);
         }
 
         private static readonly Vector3[] Corners = new Vector3[4];

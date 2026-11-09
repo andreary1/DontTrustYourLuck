@@ -36,6 +36,9 @@ namespace DontTrustYourLuck.EditorTools
         private const float Margin = 8f;
         private const float LeftWidth = 210f;
         private const float RightWidth = 260f;
+        private const float HandHeight = 172f; // Sprint 3 card hand panel (bottom, between the columns)
+        private const int HandSlots = 3;
+        private const int TargetButtons = 4;
 
         private static Font _font;
         private static Sprite _panelSprite;
@@ -137,11 +140,16 @@ namespace DontTrustYourLuck.EditorTools
             var dice = BuildDicePanel(right);
             var messages = BuildMessagePanel(right);
 
+            // Bottom: card hand (Sprint 3) -------------------------------------
+            var hand = BuildCardHand(root.transform, out var handRect);
+
             // Result overlay (last = drawn on top) ---------------------------
             var result = BuildResultScreen(root.transform);
 
             var hud = root.AddComponent<GameHUD>();
             hud.Bind(info, playerStatus, dice, messages, result, top, left.rectTransform, right);
+            hud.BindCards(hand, handRect);
+            hand.ApplyLabels(text);
 
             // Fill labels so the prefab reads correctly in Edit Mode.
             info.ApplyLabels(text);
@@ -244,6 +252,130 @@ namespace DontTrustYourLuck.EditorTools
 
             var view = panel.gameObject.AddComponent<DicePanelView>();
             view.Bind(roll, rollLabel, values, faces, buttons, labels, status);
+            return view;
+        }
+
+        /// <summary>
+        /// Sprint 3 hand panel: three printed-card slots on the left; hint, target buttons (Swap) and Play/Cancel
+        /// on the right. Sits between the player and dice columns so the board stays visible above it.
+        /// </summary>
+        private static CardHandView BuildCardHand(Transform parent, out RectTransform panelRect)
+        {
+            var panel = Panel("CardHand", parent, HudPalette.Cream);
+            Outline(panel.gameObject);
+            panelRect = panel.rectTransform;
+            Anchor(panelRect, new Vector2(0f, 0f), new Vector2(1f, 0f),
+                new Vector2(2f * Margin + LeftWidth, Margin), new Vector2(-(2f * Margin + RightWidth), Margin + HandHeight));
+
+            var title = Text("Title", panel.transform, 15, HudPalette.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
+            Anchor(title.rectTransform, new Vector2(0f, 1f), new Vector2(0.6f, 1f), new Vector2(12f, -26f), new Vector2(0f, -4f));
+
+            const float slotWidth = 122f, spacing = 8f;
+            float slotsWidth = HandSlots * slotWidth + (HandSlots - 1) * spacing;
+            var slotArea = Rect("Slots", panel.transform);
+            Anchor(slotArea, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(10f, 8f), new Vector2(10f + slotsWidth, -28f));
+            var slotLayout = slotArea.gameObject.AddComponent<HorizontalLayoutGroup>();
+            slotLayout.spacing = spacing;
+            slotLayout.childAlignment = TextAnchor.MiddleLeft;
+            slotLayout.childControlWidth = slotLayout.childControlHeight = true;
+            slotLayout.childForceExpandWidth = false;
+            slotLayout.childForceExpandHeight = true;
+
+            var slots = new List<CardSlotView>();
+            for (int i = 0; i < HandSlots; i++) slots.Add(CardSlot(slotArea, i + 1, slotWidth));
+
+            var empty = Text("Empty", panel.transform, 15, HudPalette.InkFaded, TextAnchor.MiddleCenter, FontStyle.Italic);
+            Anchor(empty.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(10f, 8f), new Vector2(10f + slotsWidth, -28f));
+
+            // Action area ------------------------------------------------------
+            var actions = Rect("Actions", panel.transform);
+            Anchor(actions, Vector2.zero, Vector2.one, new Vector2(20f + slotsWidth, 8f), new Vector2(-10f, -6f));
+
+            var hint = Text("Hint", actions, 15, HudPalette.Ink, TextAnchor.UpperLeft, FontStyle.Italic);
+            Anchor(hint.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -46f), Vector2.zero);
+
+            var targetRow = Rect("Targets", actions);
+            Anchor(targetRow, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 52f), new Vector2(0f, 90f));
+            var targetLayout = targetRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+            targetLayout.spacing = 6f;
+            targetLayout.childControlWidth = targetLayout.childControlHeight = true;
+            targetLayout.childForceExpandWidth = targetLayout.childForceExpandHeight = true;
+            var targetButtons = new List<Button>();
+            var targetLabels = new List<Text>();
+            var targetSwatches = new List<Image>();
+            for (int i = 0; i < TargetButtons; i++)
+            {
+                var b = Button($"Target_{i + 1}", targetRow, HudPalette.Card, out var label, 14);
+                label.alignment = TextAnchor.MiddleLeft;
+                label.rectTransform.offsetMin = new Vector2(18f, 0f);
+                label.resizeTextForBestFit = true;
+                label.resizeTextMinSize = 10;
+                label.resizeTextMaxSize = 14;
+                var swatch = Image("Swatch", b.transform, Color.white);
+                Anchor(swatch.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(5f, 6f), new Vector2(14f, -6f));
+                targetButtons.Add(b);
+                targetLabels.Add(label);
+                targetSwatches.Add(swatch);
+            }
+
+            var buttonRow = Rect("Buttons", actions);
+            Anchor(buttonRow, new Vector2(0f, 0f), new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 44f));
+            var buttonLayout = buttonRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+            buttonLayout.spacing = 8f;
+            buttonLayout.childControlWidth = buttonLayout.childControlHeight = true;
+            buttonLayout.childForceExpandWidth = buttonLayout.childForceExpandHeight = true;
+            var play = Button("PlayButton", buttonRow, HudPalette.Lucky, out var playLabel, 18);
+            play.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1.4f;
+            var cancel = Button("CancelButton", buttonRow, HudPalette.Card, out var cancelLabel, 16);
+            cancel.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
+
+            var view = panel.gameObject.AddComponent<CardHandView>();
+            view.Bind(title, hint, empty, slots, targetRow.gameObject, targetButtons, targetLabels, targetSwatches,
+                play, playLabel, cancel, cancelLabel);
+            targetRow.gameObject.SetActive(false);
+            return view;
+        }
+
+        private static CardSlotView CardSlot(RectTransform parent, int index, float width)
+        {
+            var root = Rect($"CardSlot_{index}", parent);
+            root.gameObject.AddComponent<LayoutElement>().preferredWidth = width;
+
+            var highlight = Image("Highlight", root, HudPalette.Lucky);
+            Anchor(highlight.rectTransform, Vector2.zero, Vector2.one, new Vector2(-4f, -4f), new Vector2(4f, 4f));
+
+            var background = Panel("Background", root, HudPalette.Card);
+            Stretch(background.rectTransform);
+            Outline(background.gameObject);
+            background.raycastTarget = true;
+            var button = background.gameObject.AddComponent<Button>();
+            button.targetGraphic = background;
+            var colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, 0.95f, 0.85f);
+            colors.pressedColor = new Color(0.85f, 0.8f, 0.7f);
+            colors.disabledColor = Color.white; // the view fades the card itself (keeps the art readable)
+            button.colors = colors;
+
+            var art = Image("Art", root, Color.white);
+            art.preserveAspect = true;
+            var artRt = art.rectTransform;
+            artRt.anchorMin = artRt.anchorMax = new Vector2(0.5f, 1f);
+            artRt.pivot = new Vector2(0.5f, 1f);
+            artRt.sizeDelta = new Vector2(64f, 64f);
+            artRt.anchoredPosition = new Vector2(0f, -5f);
+
+            var name = Text("Name", root, 15, HudPalette.Ink, TextAnchor.MiddleCenter, FontStyle.Bold);
+            Anchor(name.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(4f, -90f), new Vector2(-4f, -70f));
+            var description = Text("Description", root, 12, HudPalette.Ink, TextAnchor.UpperCenter, FontStyle.Normal);
+            Anchor(description.rectTransform, Vector2.zero, Vector2.one, new Vector2(5f, 3f), new Vector2(-5f, -91f));
+            description.resizeTextForBestFit = true;
+            description.resizeTextMinSize = 9;
+            description.resizeTextMaxSize = 12;
+
+            var view = root.gameObject.AddComponent<CardSlotView>();
+            view.Bind(button, background, highlight, art, name, description);
+            highlight.enabled = false;
             return view;
         }
 

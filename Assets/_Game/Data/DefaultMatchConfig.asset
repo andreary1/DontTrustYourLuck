@@ -21,4 +21,9 @@ MonoBehaviour:
   maxPlayers: 4
   startingHandSize: 2
   maxHandSize: 3
+  cards:
+  - {fileID: 11400000, guid: a30c2e4f7a2e28f44aa7407d1b8cb4b3, type: 2}
+  - {fileID: 11400000, guid: a311546ee3d892c4f9a2b96b4087f5e5, type: 2}
+  - {fileID: 11400000, guid: 5023f13ea924e364dabed1bd3d2c7adc, type: 2}
+  - {fileID: 11400000, guid: 1fc5118725573654eb0bae0ff106d29c, type: 2}
   maxRounds: 15

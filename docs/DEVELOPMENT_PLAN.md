@@ -54,7 +54,7 @@ Antes de codificar comportamentos irreversíveis, confirmar:
 | D07 | Exceder o limite | Rebote **no número da sorte**; vence apenas no destino final | Usuário | **Decidido (07/11/2026)** |
 | D08 | Eliminação | Terminar na casa do azar; sem retroatividade | Usuário | Proposto |
 | D09 | Último sobrevivente | Vence | Usuário | Proposto |
-| D10 | Cartas | Reroll, Swap, Recuar −3, Shield | Usuário, antes de M2 | Pendente |
+| D10 | Cartas | Lucky Roll, Swap, Recuar −3, Shield — regras em TDD §10.2 | Usuário | **Decidido (08/11/2026)** |
 | D11 | Modo de teste solo | Hot-seat + bot simples já no M1 | Usuário | **Decidido (07/11/2026)** |
 | D12 | Limite de rodadas / empate | 15 rodadas; vence o ativo mais próximo da sorte; empate na mesma casa compartilha a vitória | Usuário | **Decidido (07/11/2026)** |
 | D13 | Ordem e rodada | Ordem fixa por `Player.Id`; eliminação no meio da rodada não ressorteia o azar | Usuário | **Decidido (07/11/2026)** |

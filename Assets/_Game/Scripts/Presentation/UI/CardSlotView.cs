@@ -1,0 +1,77 @@
+using System;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace DontTrustYourLuck.Presentation.UI
+{
+    /// <summary>Display-only data of one card in the hand panel (built by the director).</summary>
+    public struct CardSlotDisplay
+    {
+        public string InstanceId;
+        public string Name;
+        public string Description;
+        public Sprite Art;
+        /// <summary>Playable right now according to the rules layer.</summary>
+        public bool Available;
+        public bool Selected;
+    }
+
+    /// <summary>One printed-card slot: art, name, short description, availability and selection feedback.</summary>
+    public sealed class CardSlotView : MonoBehaviour
+    {
+        [SerializeField] private Button button;
+        [SerializeField] private Image background;
+        [SerializeField] private Image highlight;
+        [SerializeField] private Image art;
+        [SerializeField] private Text nameText;
+        [SerializeField] private Text descriptionText;
+
+        public event Action Clicked;
+
+        public Button Button => button;
+        public bool IsSelected => highlight != null && highlight.enabled;
+        public bool IsAvailable => button != null && button.interactable;
+        public string NameText => nameText != null ? nameText.text : string.Empty;
+        public string InstanceId { get; private set; }
+
+        public void Bind(Button slotButton, Image backgroundImage, Image highlightImage, Image artImage, Text name, Text description)
+        {
+            button = slotButton; background = backgroundImage; highlight = highlightImage;
+            art = artImage; nameText = name; descriptionText = description;
+        }
+
+        private void Awake()
+        {
+            if (button != null) button.onClick.AddListener(OnClick);
+        }
+
+        private void OnDestroy()
+        {
+            if (button != null) button.onClick.RemoveListener(OnClick);
+        }
+
+        private void OnClick() => Clicked?.Invoke();
+
+        public void Show(CardSlotDisplay card)
+        {
+            gameObject.SetActive(true);
+            InstanceId = card.InstanceId;
+            nameText.text = card.Name;
+            descriptionText.text = card.Description;
+            art.sprite = card.Art;
+            art.enabled = card.Art != null;
+            highlight.enabled = card.Selected;
+            button.interactable = card.Available;
+            // Unavailable cards look faded (aged, greyed paper) but stay readable.
+            background.color = card.Available || card.Selected ? HudPalette.Card : HudPalette.CardDisabled;
+            art.color = card.Available || card.Selected ? Color.white : new Color(0.75f, 0.72f, 0.66f, 0.8f);
+            nameText.color = descriptionText.color = card.Available || card.Selected ? HudPalette.Ink : HudPalette.InkFaded;
+        }
+
+        public void Hide()
+        {
+            InstanceId = null;
+            gameObject.SetActive(false);
+        }
+    }
+}

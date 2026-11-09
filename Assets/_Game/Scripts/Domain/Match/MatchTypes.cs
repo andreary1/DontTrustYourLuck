@@ -51,6 +51,26 @@ namespace DontTrustYourLuck.Domain.Match
         InvalidDieIndex,
         InvalidPlayerCount,
         DuplicatePlayerId,
-        InvalidPlayerId
+        InvalidPlayerId,
+
+        // ---- Cards (Sprint 3) ----
+        /// <summary>The instance id is not in the acting player's hand (includes other players' cards).</summary>
+        CardNotInHand,
+        /// <summary>The player already played a card this turn.</summary>
+        CardAlreadyPlayedThisTurn,
+        /// <summary>The card exists but cannot be played in the current phase (e.g. Lucky Roll before rolling).</summary>
+        CardWrongTiming,
+        /// <summary>The card needs a target and none was given.</summary>
+        TargetRequired,
+        /// <summary>Target is unknown, the player themself, not active, or given to a card without target.</summary>
+        InvalidTarget,
+        /// <summary>The hand is at MaxHandSize.</summary>
+        HandFull,
+        /// <summary>The card id does not exist in the match catalog.</summary>
+        UnknownCard,
+        /// <summary>The match was created without a <see cref="Cards.CardSetup"/>.</summary>
+        CardsDisabled,
+        /// <summary>No effect is registered for the card's effect type (configuration error).</summary>
+        CardEffectUnavailable
     }
 }

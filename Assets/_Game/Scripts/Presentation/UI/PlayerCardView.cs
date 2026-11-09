@@ -47,8 +47,8 @@ namespace DontTrustYourLuck.Presentation.UI
                     background.color = HudPalette.CardWinner;
                     break;
                 default:
-                    statusText.text = text.statusActive;
-                    statusText.color = HudPalette.Ink;
+                    statusText.text = player.Shielded ? text.statusShielded : text.statusActive;
+                    statusText.color = player.Shielded ? HudPalette.LuckyDark : HudPalette.Ink;
                     background.color = HudPalette.Card;
                     break;
             }

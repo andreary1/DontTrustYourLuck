@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DontTrustYourLuck.Domain.Cards;
 
 namespace DontTrustYourLuck.Domain.Match
 {
@@ -12,11 +13,18 @@ namespace DontTrustYourLuck.Domain.Match
 
         public bool IsActive => Status == PlayerStatus.Active;
 
-        internal PlayerState(int id)
+        /// <summary>Cards in hand (empty with capacity 0 when cards are disabled).</summary>
+        public CardInventory Hand { get; }
+
+        /// <summary>Shield protection for the current move only; cleared when the move resolves.</summary>
+        public bool HasShield { get; internal set; }
+
+        internal PlayerState(int id, int handCapacity = 0)
         {
             Id = id;
             Position = 0;
             Status = PlayerStatus.Active;
+            Hand = new CardInventory(handCapacity);
         }
 
         public override string ToString() => $"P{Id}@{Position} ({Status})";
@@ -38,6 +46,10 @@ namespace DontTrustYourLuck.Domain.Match
         public int CurrentPlayerId { get; internal set; } = -1;
         public int LuckyNumber { get; internal set; }
         public int UnluckyNumber { get; internal set; }
+        /// <summary>True once the current player played a card this turn (one card per turn). Reset every turn.</summary>
+        public bool CardPlayedThisTurn { get; internal set; }
+        /// <summary>Counter for match-unique card instance ids.</summary>
+        internal int NextCardInstanceNumber { get; set; } = 1;
         /// <summary>Pending roll awaiting a choice; null otherwise. Kept until ChooseDie resolves.</summary>
         public DiceRoll CurrentRoll { get; internal set; }
         public MatchEndReason EndReason { get; internal set; } = MatchEndReason.None;

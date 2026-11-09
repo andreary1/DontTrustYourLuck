@@ -2,10 +2,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using DontTrustYourLuck.Domain;
+using DontTrustYourLuck.Domain.Cards;
 using DontTrustYourLuck.Domain.Match;
 using DontTrustYourLuck.Gameplay;
 using DontTrustYourLuck.Infrastructure;
 using DontTrustYourLuck.Presentation.Board;
+using DontTrustYourLuck.Presentation.Cards;
 using DontTrustYourLuck.Presentation.Config;
 using DontTrustYourLuck.Presentation.UI;
 using UnityEngine;
@@ -58,6 +60,14 @@ namespace DontTrustYourLuck.Presentation.Match
         private readonly List<PlayerPieceView> _activePieces = new List<PlayerPieceView>();
         private readonly List<PlayerDisplay> _players = new List<PlayerDisplay>();
         private readonly List<int> _lastRoll = new List<int>(2);
+        // Card presentation state, mirrored from domain events (never the source of truth).
+        private readonly Dictionary<int, List<CardInstance>> _hands = new Dictionary<int, List<CardInstance>>();
+        private readonly Dictionary<string, CardDefinitionAsset> _cardAssets = new Dictionary<string, CardDefinitionAsset>();
+        private readonly List<CardSlotDisplay> _slotBuffer = new List<CardSlotDisplay>(3);
+        private readonly List<CardTargetDisplay> _targetBuffer = new List<CardTargetDisplay>(4);
+        private CardCatalog _cardCatalog;
+        private string _selectedCard;
+        private int _selectedTarget = -1;
 
         private MatchRulesConfig _rules;
         private MatchSession _session;
@@ -83,6 +93,10 @@ namespace DontTrustYourLuck.Presentation.Match
         public int LastSeed { get; private set; }
         public IReadOnlyList<PlayerPieceView> ActivePieces => _activePieces;
         public IReadOnlyList<PlayerDisplay> Players => _players;
+        /// <summary>Instance id of the card selected in the hand panel, or null.</summary>
+        public string SelectedCardId => _selectedCard;
+        /// <summary>Target picked for the selected card, or -1.</summary>
+        public int SelectedTargetId => _selectedTarget;
 
         public void Configure(MatchConfigAsset configAsset, BoardView boardView, BoardCameraRig rig, GameHUD gameHud,
             PlayerPieceView prefab, Transform root, List<PlayerPieceView> existingPieces)
@@ -107,6 +121,10 @@ namespace DontTrustYourLuck.Presentation.Match
                 hud.RollRequested += OnRollRequested;
                 hud.DieChosen += OnDieChosen;
                 hud.PlayAgainRequested += OnPlayAgainRequested;
+                hud.CardSlotClicked += OnCardSlotClicked;
+                hud.CardTargetClicked += OnCardTargetClicked;
+                hud.CardPlayRequested += OnCardPlayRequested;
+                hud.CardCancelRequested += OnCardCancelRequested;
             }
         }
 
@@ -122,6 +140,10 @@ namespace DontTrustYourLuck.Presentation.Match
                 hud.RollRequested -= OnRollRequested;
                 hud.DieChosen -= OnDieChosen;
                 hud.PlayAgainRequested -= OnPlayAgainRequested;
+                hud.CardSlotClicked -= OnCardSlotClicked;
+                hud.CardTargetClicked -= OnCardTargetClicked;
+                hud.CardPlayRequested -= OnCardPlayRequested;
+                hud.CardCancelRequested -= OnCardCancelRequested;
             }
             DisposeSession();
         }
@@ -161,6 +183,7 @@ namespace DontTrustYourLuck.Presentation.Match
             try
             {
                 _rules = config != null ? config.ToRulesConfig() : MatchRulesConfig.Default;
+                _cardCatalog = config != null ? config.ToCardCatalog() : CardCatalog.CreateDefault();
             }
             catch (ArgumentException e)
             {
@@ -183,7 +206,15 @@ namespace DontTrustYourLuck.Presentation.Match
 
             var slots = new PlayerSlot[_seats.Length];
             for (int i = 0; i < slots.Length; i++) slots[i] = new PlayerSlot(i + 1, _seats[i].isBot);
-            _session = new MatchSession(_rules, slots, CreateRandomSource);
+            _cardAssets.Clear();
+            if (config != null)
+            {
+                foreach (var card in config.Cards)
+                {
+                    if (card != null) _cardAssets[card.Id] = card;
+                }
+            }
+            _session = new MatchSession(_rules, slots, CreateRandomSource, null, _cardCatalog, CreateCardRandomSource);
             _session.EventPublished += OnEvent;
             _session.CommandRejected += OnCommandRejected;
             _session.StartMatch();
@@ -200,9 +231,16 @@ namespace DontTrustYourLuck.Presentation.Match
                 return;
             }
             StopPlayback();
+            ClearCardSelection();
             _session.RestartMatch();
             Pump();
         }
+
+        /// <summary>Card draw stream, derived from the match seed (called right after <see cref="CreateRandomSource"/>).</summary>
+        private IRandomSource CreateCardRandomSource() => new SeededRandomSource(CardSeedFor(LastSeed));
+
+        /// <summary>Seed of the card draw stream for a match seed (logged seeds reproduce hands too).</summary>
+        public static int CardSeedFor(int matchSeed) => unchecked(matchSeed * 486187739 + 0x5EED);
 
         private IRandomSource CreateRandomSource()
         {
@@ -290,6 +328,82 @@ namespace DontTrustYourLuck.Presentation.Match
 
         private void OnPlayAgainRequested() => Restart();
 
+        // ---------------- Input (cards) ----------------
+        // Selection is presentation state only; legality always comes from the rules layer (ValidateCardPlay),
+        // and the final PlayCard is validated again by the domain.
+
+        private bool CanHumanUseCards =>
+            _session != null && !IsBusy && !_session.IsBotTurn && !_session.State.IsFinished &&
+            (_session.State.Phase == MatchPhase.AwaitingRoll || _session.State.Phase == MatchPhase.AwaitingDiceChoice);
+
+        private void OnCardSlotClicked(int slot)
+        {
+            if (!CanHumanUseCards) return;
+            var hand = HandOf(_session.State.CurrentPlayerId);
+            if (hand == null || slot < 0 || slot >= hand.Count) return;
+            var card = hand[slot];
+            if (_selectedCard == card.InstanceId)
+            {
+                ClearCardSelection(); // clicking the selected card again deselects it
+            }
+            else if (IsCardPlayable(card))
+            {
+                _selectedCard = card.InstanceId;
+                _selectedTarget = -1;
+            }
+            RefreshHud();
+        }
+
+        private void OnCardTargetClicked(int playerId)
+        {
+            if (!CanHumanUseCards || _selectedCard == null) return;
+            if (_session.Engine.ValidateCardPlay(_session.State.CurrentPlayerId, _selectedCard, playerId) != CommandError.None) return;
+            _selectedTarget = playerId;
+            RefreshHud();
+        }
+
+        private void OnCardPlayRequested()
+        {
+            if (!CanHumanUseCards || _selectedCard == null) return;
+            string card = _selectedCard;
+            int? target = _selectedTarget >= 0 ? _selectedTarget : (int?)null;
+            ClearCardSelection();
+            _session.PlayCard(_session.State.CurrentPlayerId, card, target); // a rejection is logged, card kept
+            Pump();
+            RefreshHud();
+        }
+
+        private void OnCardCancelRequested()
+        {
+            ClearCardSelection(); // nothing was sent to the rules layer: the card is not consumed
+            RefreshHud();
+        }
+
+        private void ClearCardSelection()
+        {
+            _selectedCard = null;
+            _selectedTarget = -1;
+        }
+
+        private List<CardInstance> HandOf(int playerId) =>
+            playerId >= 0 && _hands.TryGetValue(playerId, out var hand) ? hand : null;
+
+        private bool IsCardPlayable(CardInstance card)
+        {
+            int current = _session.State.CurrentPlayerId;
+            var error = _session.Engine.ValidateCardPlay(current, card.InstanceId);
+            if (error == CommandError.None) return true;
+            if (error != CommandError.TargetRequired) return false;
+            foreach (var p in _session.State.Players)
+            {
+                if (_session.Engine.ValidateCardPlay(current, card.InstanceId, p.Id) == CommandError.None) return true;
+            }
+            return false;
+        }
+
+        private string CardName(string cardId) =>
+            _cardAssets.TryGetValue(cardId, out var asset) && !string.IsNullOrEmpty(asset.DisplayName) ? asset.DisplayName : cardId;
+
         private bool CanHumanAct(MatchPhase phase) =>
             _session != null && !IsBusy && !_session.IsBotTurn && _session.State.Phase == phase;
 
@@ -354,6 +468,7 @@ namespace DontTrustYourLuck.Presentation.Match
                     _currentId = turn.PlayerId;
                     _lastRoll.Clear();
                     _selectedDie = -1;
+                    ClearCardSelection(); // pending card/target selection never crosses turns
                     Log(string.Format(text.turnChanged, NameOf(turn.PlayerId)));
                     break;
 
@@ -391,7 +506,67 @@ namespace DontTrustYourLuck.Presentation.Match
                     Log(string.Format(text.playerWon, NameOf(won.PlayerId)));
                     break;
 
+                // ---- Cards (messages and visuals only from resolved domain events) ----
+                case CardDrawnEvent drawn:
+                    HandOrNew(drawn.PlayerId).Add(drawn.Card);
+                    if (drawn.Source == CardDrawSource.Granted)
+                        Log(string.Format(text.cardGranted, NameOf(drawn.PlayerId), CardName(drawn.Card.CardId)));
+                    break;
+
+                case CardPlayedEvent played:
+                    if (played.Card.Definition.Effect == CardEffectType.Reroll)
+                        Log(string.Format(text.luckyRollActivated, NameOf(played.PlayerId)));
+                    break;
+
+                case CardConsumedEvent consumed:
+                    HandOf(consumed.PlayerId)?.Remove(consumed.Card);
+                    break;
+
+                case DiceRerolledEvent rerolled:
+                    _lastRoll.Clear();
+                    for (int i = 0; i < rerolled.Roll.Count; i++) _lastRoll.Add(rerolled.Roll[i]);
+                    _selectedDie = -1;
+                    Log(string.Format(text.diceRerolled, rerolled.Roll[0], rerolled.Roll.Count > 1 ? rerolled.Roll[1] : rerolled.Roll[0]));
+                    yield return Pause(eventPause);
+                    break;
+
+                case PlayerPositionsSwappedEvent swapped:
+                    yield return AnimateSwap(swapped);
+                    SetDisplayPosition(swapped.PlayerId, swapped.PlayerPosition);
+                    SetDisplayPosition(swapped.TargetPlayerId, swapped.TargetPosition);
+                    Log(string.Format(text.positionsSwapped, NameOf(swapped.PlayerId), NameOf(swapped.TargetPlayerId)));
+                    break;
+
+                case PlayerRetreatedEvent retreated:
+                    if (retreated.Steps > 0)
+                    {
+                        var path = new List<int>(retreated.Steps);
+                        for (int tile = retreated.From - 1; tile >= retreated.To; tile--) path.Add(tile);
+                        yield return AnimatePath(retreated.PlayerId, path, retreated.To);
+                        Log(string.Format(text.playerRetreated, NameOf(retreated.PlayerId), retreated.Steps));
+                    }
+                    else
+                    {
+                        Log(string.Format(text.playerRetreatedNone, NameOf(retreated.PlayerId)));
+                    }
+                    SetDisplayPosition(retreated.PlayerId, retreated.To);
+                    break;
+
+                case ShieldActivatedEvent shield:
+                    SetDisplayShield(shield.PlayerId, true);
+                    Log(string.Format(text.shieldActivated, NameOf(shield.PlayerId)));
+                    break;
+
+                case ShieldConsumedEvent shieldEnd:
+                    SetDisplayShield(shieldEnd.PlayerId, false);
+                    Log(shieldEnd.BlockedElimination
+                        ? string.Format(text.shieldBlocked, NameOf(shieldEnd.PlayerId), shieldEnd.Tile)
+                        : string.Format(text.shieldExpired, NameOf(shieldEnd.PlayerId)));
+                    if (shieldEnd.BlockedElimination) yield return Pause(eventPause * 2f);
+                    break;
+
                 case MatchFinishedEvent finished:
+                    ClearCardSelection();
                     _currentId = -1;
                     _lastRoll.Clear();
                     board.PlacePieces(_activePieces);
@@ -408,6 +583,8 @@ namespace DontTrustYourLuck.Presentation.Match
             _currentId = -1;
             _selectedDie = -1;
             _lastRoll.Clear();
+            _hands.Clear();
+            ClearCardSelection();
             hud.ResultScreen.Hide();
             hud.Messages.Clear();
 
@@ -430,10 +607,35 @@ namespace DontTrustYourLuck.Presentation.Match
             board.SetHighlights(_lucky, -1);
         }
 
-        private IEnumerator AnimateMove(PlayerMovedEvent moved)
+        private IEnumerator AnimateMove(PlayerMovedEvent moved) =>
+            AnimatePath(moved.PlayerId, moved.Movement.Path, moved.Movement.FinalPosition);
+
+        /// <summary>Swap: both pieces hop to each other's tile at the same time, then snap to logical slots.</summary>
+        private IEnumerator AnimateSwap(PlayerPositionsSwappedEvent e)
         {
-            if (!_pieceById.TryGetValue(moved.PlayerId, out var piece)) yield break;
-            var path = moved.Movement.Path;
+            if (!_pieceById.TryGetValue(e.PlayerId, out var a) || !_pieceById.TryGetValue(e.TargetPlayerId, out var b)) yield break;
+            Vector3 fromA = a.transform.position, fromB = b.transform.position;
+            Vector3 toA = board.GetTileAnchor(e.PlayerPosition).position;
+            Vector3 toB = board.GetTileAnchor(e.TargetPosition).position;
+            float duration = stepDuration * 3f;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float k = Mathf.Clamp01(elapsed / duration);
+                Vector3 hop = Vector3.up * (Mathf.Sin(k * Mathf.PI) * hopHeight * 2f);
+                a.transform.position = Vector3.Lerp(fromA, toA, k) + hop;
+                b.transform.position = Vector3.Lerp(fromB, toB, k) + hop;
+                yield return null;
+            }
+            a.SetLogicalPosition(e.PlayerPosition);
+            b.SetLogicalPosition(e.TargetPosition);
+            board.PlacePieces(_activePieces);
+        }
+
+        private IEnumerator AnimatePath(int playerId, IReadOnlyList<int> path, int finalPosition)
+        {
+            if (!_pieceById.TryGetValue(playerId, out var piece)) yield break;
             var t = piece.transform;
             for (int i = 0; i < path.Count; i++)
             {
@@ -450,7 +652,7 @@ namespace DontTrustYourLuck.Presentation.Match
                 t.position = to;
             }
             // Logical position is the source of truth; snap all pieces to their slots.
-            piece.SetLogicalPosition(moved.Movement.FinalPosition);
+            piece.SetLogicalPosition(finalPosition);
             board.PlacePieces(_activePieces);
         }
 
@@ -528,6 +730,93 @@ namespace DontTrustYourLuck.Presentation.Match
                 ? string.Format(text.botThinking, NameOf(_currentId))
                 : string.Empty;
             hud.DicePanel.Show(text, _lastRoll.Count > 0 ? _lastRoll : null, canRoll, canChoose, _selectedDie, status);
+
+            if (hud.CardHand != null) RefreshCardHand(text, state, humanTurn, shownIsBot, idle, finished);
+        }
+
+        private void RefreshCardHand(HudText text, MatchState state, bool humanTurn, bool shownIsBot, bool idle, bool finished)
+        {
+            bool canUse = humanTurn && CanHumanUseCards;
+            var hand = HandOf(_currentId);
+
+            // Drop a selection the rules no longer allow (phase changed, card gone, ...).
+            CardInstance selected = null;
+            if (_selectedCard != null)
+            {
+                selected = hand?.Find(c => c.InstanceId == _selectedCard);
+                if (!canUse || selected == null || !IsCardPlayable(selected))
+                {
+                    ClearCardSelection();
+                    selected = null;
+                }
+            }
+
+            _slotBuffer.Clear();
+            bool anyAvailable = false;
+            if (hand != null)
+            {
+                foreach (var card in hand)
+                {
+                    bool available = canUse && IsCardPlayable(card);
+                    anyAvailable |= available;
+                    _cardAssets.TryGetValue(card.CardId, out var asset);
+                    _slotBuffer.Add(new CardSlotDisplay
+                    {
+                        InstanceId = card.InstanceId,
+                        Name = CardName(card.CardId),
+                        Description = asset != null ? asset.ShortDescription : string.Empty,
+                        Art = asset != null ? asset.Art : null,
+                        Available = available,
+                        Selected = selected != null && card.InstanceId == selected.InstanceId
+                    });
+                }
+            }
+
+            List<CardTargetDisplay> targets = null;
+            string hint;
+            if (finished || _currentId < 0) hint = string.Empty;
+            else if (shownIsBot) hint = string.Format(text.hintBotHand, NameOf(_currentId));
+            else if (!idle) hint = text.hintWaiting;
+            else if (state.CardPlayedThisTurn) hint = text.hintCardUsed;
+            else if (selected != null && selected.Definition.RequiresTarget)
+            {
+                hint = string.Format(text.hintPickTarget, CardName(selected.CardId));
+                _targetBuffer.Clear();
+                foreach (var p in state.Players)
+                {
+                    if (_session.Engine.ValidateCardPlay(state.CurrentPlayerId, selected.InstanceId, p.Id) != CommandError.None) continue;
+                    _targetBuffer.Add(new CardTargetDisplay { PlayerId = p.Id, Name = NameOf(p.Id), Color = ColorOf(p.Id) });
+                }
+                targets = _targetBuffer;
+            }
+            else if (selected != null) hint = string.Format(text.hintConfirm, CardName(selected.CardId));
+            else if (anyAvailable) hint = text.hintPickCard;
+            else hint = hand != null && hand.Count > 0 ? text.hintNoPlayable : string.Empty;
+
+            string title = _currentId >= 0 ? string.Format(text.cardsTitleOwner, NameOf(_currentId)) : text.cardsTitle;
+            bool canPlay = selected != null && (!selected.Definition.RequiresTarget || _selectedTarget >= 0);
+            hud.CardHand.Show(title, _slotBuffer, hint, targets, _selectedTarget, canPlay, selected != null);
+        }
+
+        private List<CardInstance> HandOrNew(int playerId)
+        {
+            if (!_hands.TryGetValue(playerId, out var hand))
+            {
+                hand = new List<CardInstance>(3);
+                _hands[playerId] = hand;
+            }
+            return hand;
+        }
+
+        private void SetDisplayShield(int id, bool shielded)
+        {
+            for (int i = 0; i < _players.Count; i++)
+            {
+                if (_players[i].Id != id) continue;
+                var p = _players[i];
+                p.Shielded = shielded;
+                _players[i] = p;
+            }
         }
 
         private void Log(string message) => hud.Messages.Add(message);

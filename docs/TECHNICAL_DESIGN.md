@@ -105,14 +105,14 @@ Este documento especifica **como implementar** o protótipo de *Don't Trust Your
 | Sorte e azar coincidentes | Impossível pela faixa do azar (`< LuckyNumber`) | **Decidido (M1)** |
 | Já estar na casa do azar quando ela é sorteada | Sem eliminação retroativa | Proposto |
 | Último sobrevivente | Vence se os demais foram eliminados | Proposto |
-| Cartas | Uma carta ativa por turno; defesa reativa sob regra específica | Pendente |
+| Cartas | Mão inicial 2, limite 3, uma carta por turno (validada no domínio); sem cartas reativas no M2. Ver §10.2 | **Decidido (08/11/2026)** |
 | Casas ocupadas | Permitir múltiplas peças na mesma casa, com deslocamento visual | Proposto |
 | Limite de rodadas | `MaxRounds = 15` | **Decidido (M1)** |
 | Fim por limite | Vence o jogador ativo de maior posição (mais próximo da sorte); empatados na mesma casa **compartilham a vitória** | **Decidido (M1)** |
 | Modo local | Hot-seat + bot simples já no M1 | **Decidido (M1)** |
 | Azar atrás de todos os jogadores | Permitido no M1; avaliar em playtest | Proposto |
-| Troca de posição e risco | Ainda não definido | Em aberto |
-| Movimento para trás além da casa inicial | Ainda não definido | Em aberto |
+| Troca de posição e risco | Swap/Recuar não ativam sorte nem azar; só o movimento dos dados resolve a casa | **Decidido (08/11/2026)** |
+| Movimento para trás além da casa inicial | `max(0, posição − 3)` | **Decidido (08/11/2026)** |
 
 **Ponto crítico:** como a vitória exige chegar exatamente à casa da sorte, o algoritmo de rebote considera o **destino final**, não casas atravessadas. Ver §7.2.
 
@@ -389,7 +389,7 @@ Ao concluir a rodada `MaxRounds` (15) sem vencedor, a partida termina: vencem to
 6. Verificar condição de último sobrevivente.
 7. Avançar turno ou finalizar.
 
-A ordem exata para efeitos de cartas, escudos e trocas de posição **permanece pendente** e deverá ser formalizada antes do Marco M2.
+**Decidido (08/11/2026):** cartas de pré-rolagem (Swap, Recuar, Shield) resolvem-se em `AwaitingRoll` e não verificam sorte/azar; Lucky Roll resolve-se em `AwaitingDiceChoice`. Após o movimento: posição → sorte → azar → Shield (bloqueia a eliminação e é consumido; o jogador permanece na casa) → último sobrevivente → fim do turno. A proteção expira ao fim do movimento em qualquer caso.
 
 ### 9.4 Casos especiais
 
@@ -417,14 +417,23 @@ A ordem exata para efeitos de cartas, escudos e trocas de posição **permanece 
 
 ### 10.2 Quatro cartas candidatas
 
-| ID sugerido | Efeito proposto | Pendência |
-|---|---|---|
-| `reroll` | Nova rolagem | momento de uso |
-| `swap` | Troca de posições | risco e prioridade |
-| `move_back_3` | Recuar três casas | limite inferior e risco |
-| `shield` | Evitar uma eliminação | duração e consumo |
+**Decidido (08/11/2026, S3-01).** Regras configuráveis em `CardCatalog` / `CardDefinitionAsset`.
 
-Antes de implementar, documentar: fase permitida, alvo, resultado, interação com sorte/azar, cancelamento e desempate.
+| ID | Nome | Fase | Alvo | Efeito | Sorte/azar | Após o uso |
+|---|---|---|---|---|---|---|
+| `lucky_roll` | Lucky Roll | `AwaitingDiceChoice` | — | Descarta os dois dados e rola dois novos com o RNG de dados; sem volta aos anteriores | — | Continua em `AwaitingDiceChoice` |
+| `swap` | Swap | `AwaitingRoll` | Outro jogador ativo | Troca as posições | Não ativa | Continua em `AwaitingRoll` |
+| `retreat_3` | Retreat | `AwaitingRoll` | — | `max(0, posição − 3)` | Não ativa | Continua em `AwaitingRoll` |
+| `shield` | Shield | `AwaitingRoll` | Si mesmo | Proteção contra uma eliminação pelo azar no próximo movimento | — | Continua em `AwaitingRoll` |
+
+Regras gerais:
+- Uma carta por turno (`CardAlreadyPlayedThisTurn`); mão inicial 2; limite 3 (`HandFull`).
+- A carta só sai da mão depois de validada e aplicada; comandos rejeitados não consomem carta nem RNG.
+- Cartas **sem efeito real** (Recuar na casa 0; Swap com alvo na mesma casa) são **válidas e consumidas** (decisão do usuário).
+- Sorteio da mão: uniforme com reposição entre as definições do catálogo, num **stream de RNG próprio das cartas** (derivado da seed da partida), para não alterar a sequência de sorte/azar/dados.
+- Shield: a proteção é consumida ao bloquear a eliminação e expira ao fim do movimento seguro; nunca persiste entre turnos.
+- Bots ainda não usam cartas; jogam só com os dados.
+- Concessão de cartas fora da mão inicial: apenas `MatchEngine.GrantCard` (`internal`, visível a testes). Casas de compra ficam para depois.
 
 ---
 
