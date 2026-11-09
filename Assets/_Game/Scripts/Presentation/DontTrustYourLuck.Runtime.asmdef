@@ -4,7 +4,8 @@
     "references": [
         "DontTrustYourLuck.Domain",
         "DontTrustYourLuck.Infrastructure",
-        "DontTrustYourLuck.Gameplay"
+        "DontTrustYourLuck.Gameplay",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -173,6 +173,7 @@ namespace DontTrustYourLuck.Presentation.Match
                 hud.RollRequested += OnRollRequested;
                 hud.DieChosen += OnDieChosen;
                 hud.PlayAgainRequested += OnPlayAgainRequested;
+                hud.StartGameRequested += OnStartGameRequested;
                 hud.CardSlotClicked += OnCardSlotClicked;
                 hud.CardTargetClicked += OnCardTargetClicked;
                 hud.CardPlayRequested += OnCardPlayRequested;
@@ -192,6 +193,7 @@ namespace DontTrustYourLuck.Presentation.Match
                 hud.RollRequested -= OnRollRequested;
                 hud.DieChosen -= OnDieChosen;
                 hud.PlayAgainRequested -= OnPlayAgainRequested;
+                hud.StartGameRequested -= OnStartGameRequested;
                 hud.CardSlotClicked -= OnCardSlotClicked;
                 hud.CardTargetClicked -= OnCardTargetClicked;
                 hud.CardPlayRequested -= OnCardPlayRequested;
@@ -382,6 +384,9 @@ namespace DontTrustYourLuck.Presentation.Match
         }
 
         private void OnPlayAgainRequested() => Restart();
+
+        /// <summary>Main menu "Play": first match of the session, or a fresh one after returning to the menu.</summary>
+        private void OnStartGameRequested() => Restart();
 
         // ---------------- Input (cards) ----------------
         // Selection is presentation state only; legality always comes from the rules layer (ValidateCardPlay),

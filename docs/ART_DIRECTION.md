@@ -291,6 +291,33 @@ Estado nunca só por cor: elevação, borda e ícone reforçam. Arte das cartas:
 - Jogador atual: moldura destacada + indicador de turno; eliminado: retrato em preto e branco/carta virada.
 - Cor + animal + retrato sempre juntos.
 
+### 8.6 Menu principal — **Implementado (09/11/2026)**
+
+Inspirado na folha de conceito de UI do usuário, sem copiá-la: usa os mesmos sprites de papel da HUD.
+
+- **Onde:** overlay dentro do prefab `GameHUD` (`MainMenu`, último filho), sobre o diorama da cena `GameBoard`. A partida só começa no **Play** (`MatchDirector.autoStart = false`). Não há cena separada nem mudança na lista de build.
+- **Composição (referência 1280×720, âncoras proporcionais):**
+  - Logo à esquerda (`Art/UI/Branding/UI_Logo_Main.png`, arte enviada pelo usuário, 1024×683, filtro bilinear).
+  - Cartão "MAIN MENU" à direita com Play (botão vermelho primário), How to Play, Options e Credits.
+  - Faixas de azulejo azul/creme no topo e na base, véu quente sobre o cenário e rodapé com dica de controle.
+- **Entrada:**
+  - O logo cai de cima com escala *ease-out-back* e um balanço amortecido, como uma carta jogada na mesa.
+  - O cartão desliza da direita e os botões entram em cascata (~1,35 s).
+  - Qualquer clique ou tecla pula a entrada.
+  - Em repouso, o logo flutua e oscila levemente.
+- **Saída (Play):** logo e cartão saem enquanto a HUD aparece em volta do tabuleiro (~0,6 s); só então a partida é criada.
+- **Painéis modais:**
+  - **How to Play:** 6 linhas com ícone, resumo das regras aprovadas.
+  - **Options:** volume e mudo, sincronizados com o popover de som da HUD.
+  - **Credits.**
+  - Voltar com o botão **Back** ou com **Esc**.
+- **Volta ao menu:** botão "Main Menu" na tela de resultado.
+- **Textos:** inglês, como a HUD atual, em `MenuText` (serializado em `MainMenuView`), pronto para localização.
+- **Pendências:**
+  - Créditos com nomes reais da equipe (hoje mostra o usuário do GitHub `andreary1`).
+  - Fonte display final.
+  - Seleção de tabuleiro (fora do escopo: só existe Fortaleza).
+
 ---
 
 ## 9. Feedback visual e animações
