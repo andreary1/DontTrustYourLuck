@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace DontTrustYourLuck.Presentation.UI
 {
@@ -17,6 +18,11 @@ namespace DontTrustYourLuck.Presentation.UI
         [SerializeField] private ResultScreenView resultScreen;
         [Tooltip("Hand panel (Sprint 3). Optional: without it the match runs dice-only in the HUD.")]
         [SerializeField] private CardHandView cardHand;
+        [Header("Sprint 4 (optional)")]
+        [SerializeField] private FeedbackBannerView banner;
+        [SerializeField] private AudioSettingsView audioSettings;
+        [SerializeField] private Text titleText;
+        [SerializeField] private Text subtitleText;
 
         [Header("Board viewport (areas covered by the HUD)")]
         [SerializeField] private RectTransform topBar;
@@ -35,6 +41,8 @@ namespace DontTrustYourLuck.Presentation.UI
         public event Action CardCancelRequested;
 
         public CardHandView CardHand => cardHand;
+        public FeedbackBannerView Banner => banner;
+        public AudioSettingsView AudioSettings => audioSettings;
 
         public HudText Text => text;
         public MatchInfoView MatchInfo => matchInfo;
@@ -54,6 +62,14 @@ namespace DontTrustYourLuck.Presentation.UI
         {
             cardHand = hand;
             bottomBar = bottom;
+        }
+
+        public void BindSprint4(FeedbackBannerView bannerView, AudioSettingsView audioView, Text title, Text subtitle)
+        {
+            banner = bannerView;
+            audioSettings = audioView;
+            titleText = title;
+            subtitleText = subtitle;
         }
 
         private void Awake()
@@ -97,6 +113,9 @@ namespace DontTrustYourLuck.Presentation.UI
             messages.ApplyLabels(text);
             resultScreen.ApplyLabels(text);
             if (cardHand != null) cardHand.ApplyLabels(text);
+            if (audioSettings != null) audioSettings.ApplyLabels(text);
+            if (titleText != null) titleText.text = text.gameTitle;
+            if (subtitleText != null) subtitleText.text = text.gameSubtitle;
         }
 
         private void OnCardClicked(int slot) => CardSlotClicked?.Invoke(slot);

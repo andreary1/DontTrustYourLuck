@@ -13,6 +13,8 @@ namespace DontTrustYourLuck.Presentation.Board
         public Material lucky;
         public Material unlucky;
         public Material connector;
+        [Tooltip("Optional (Sprint 4): tiles above the lucky number (unreachable). Patterned, not just darker.")]
+        public Material beyondLucky;
     }
 
     /// <summary>
@@ -30,6 +32,12 @@ namespace DontTrustYourLuck.Presentation.Board
         [Min(0f)] [SerializeField] private float pieceSlotRadius = 0.24f;
         [SerializeField] private List<BoardTileView> tiles = new List<BoardTileView>();
         [SerializeField] private List<GameObject> connectors = new List<GameObject>();
+        [Header("Highlight markers (optional, Sprint 4)")]
+        [Tooltip("Floating icon placed over the lucky tile (e.g. sun).")]
+        [SerializeField] private Transform luckyMarker;
+        [Tooltip("Floating icon placed over the unlucky tile (e.g. eye).")]
+        [SerializeField] private Transform unluckyMarker;
+        [Min(0f)] [SerializeField] private float markerHeight = 1.15f;
 
         private int _luckyIndex = -1;
         private int _unluckyIndex = -1;
@@ -37,6 +45,17 @@ namespace DontTrustYourLuck.Presentation.Board
         public IReadOnlyList<BoardTileView> Tiles => tiles;
         public int TileCount => tiles.Count;
         public ZigzagBoardLayout Layout => layout;
+        public int LuckyIndex => _luckyIndex;
+        public int UnluckyIndex => _unluckyIndex;
+        public Transform LuckyMarker => luckyMarker;
+        public Transform UnluckyMarker => unluckyMarker;
+
+        /// <summary>Sprint 4 builder: markers are scene objects, not part of the tiles.</summary>
+        public void SetMarkers(Transform lucky, Transform unlucky)
+        {
+            luckyMarker = lucky;
+            unluckyMarker = unlucky;
+        }
 
         public bool IsBuilt(int expectedTileCount)
         {
@@ -235,8 +254,20 @@ namespace DontTrustYourLuck.Presentation.Board
                 if (tiles[i] == null) continue;
                 if (i == _luckyIndex) tiles[i].SetMaterial(materials.lucky, TileHighlight.Lucky);
                 else if (i == _unluckyIndex) tiles[i].SetMaterial(materials.unlucky, TileHighlight.Unlucky);
+                else if (_luckyIndex > 0 && i > _luckyIndex && materials.beyondLucky != null)
+                    tiles[i].SetMaterial(materials.beyondLucky, TileHighlight.None); // unreachable: visual only
                 else tiles[i].SetMaterial(BaseMaterial(i), TileHighlight.None);
             }
+            PlaceMarker(luckyMarker, _luckyIndex);
+            PlaceMarker(unluckyMarker, _unluckyIndex);
+        }
+
+        private void PlaceMarker(Transform marker, int index)
+        {
+            if (marker == null) return;
+            bool show = index >= 0 && index < tiles.Count && tiles[index] != null;
+            if (marker.gameObject.activeSelf != show) marker.gameObject.SetActive(show);
+            if (show) marker.position = tiles[index].transform.position + Vector3.up * markerHeight;
         }
 
         private Material BaseMaterial(int index)

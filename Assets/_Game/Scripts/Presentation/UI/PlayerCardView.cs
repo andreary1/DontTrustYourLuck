@@ -15,6 +15,8 @@ namespace DontTrustYourLuck.Presentation.UI
         [SerializeField] private Text nameText;
         [SerializeField] private Text positionText;
         [SerializeField] private Text statusText;
+        [Tooltip("Optional (Sprint 4): character portrait.")]
+        [SerializeField] private Image portrait;
 
         public void Bind(Image swatchImage, Image highlightImage, Image backgroundImage, Text name, Text position, Text status)
         {
@@ -22,7 +24,10 @@ namespace DontTrustYourLuck.Presentation.UI
             nameText = name; positionText = position; statusText = status;
         }
 
+        public void BindPortrait(Image portraitImage) => portrait = portraitImage;
+
         public bool IsHighlighted => highlight != null && highlight.enabled;
+        public Sprite PortraitSprite => portrait != null ? portrait.sprite : null;
         public string StatusText => statusText.text;
         public string PositionText => positionText.text;
 
@@ -33,6 +38,12 @@ namespace DontTrustYourLuck.Presentation.UI
             nameText.text = player.IsBot ? string.Format(text.botTag, player.Name) : player.Name;
             positionText.text = string.Format(text.tileValue, player.Position);
             highlight.enabled = isCurrent;
+            if (portrait != null)
+            {
+                portrait.sprite = player.Portrait;
+                portrait.enabled = player.Portrait != null;
+                portrait.color = player.Status == PlayerDisplayStatus.Eliminated ? new Color(0.55f, 0.55f, 0.55f, 0.9f) : Color.white;
+            }
 
             switch (player.Status)
             {

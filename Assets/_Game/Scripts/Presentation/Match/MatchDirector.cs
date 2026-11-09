@@ -36,10 +36,10 @@ namespace DontTrustYourLuck.Presentation.Match
         [Header("Participants (count must respect MatchRulesConfig)")]
         [SerializeField] private List<ParticipantConfig> participants = new List<ParticipantConfig>
         {
-            new ParticipantConfig("Jaguar", HudPalette.Hex(0x287FA3), false),
-            new ParticipantConfig("Macaw", HudPalette.Hex(0xED638B), true),
-            new ParticipantConfig("Monkey", HudPalette.Hex(0x438B52), true),
-            new ParticipantConfig("Capybara", HudPalette.Hex(0x713E91), true),
+            new ParticipantConfig("Onça", HudPalette.Hex(0xF4B942), false),
+            new ParticipantConfig("Capivara", HudPalette.Hex(0x287FA3), true),
+            new ParticipantConfig("Macaco", HudPalette.Hex(0x438B52), true),
+            new ParticipantConfig("Tucano", HudPalette.Hex(0xED638B), true),
         };
 
         [Header("Randomness")]
@@ -54,6 +54,14 @@ namespace DontTrustYourLuck.Presentation.Match
         [Min(0f)] [SerializeField] private float botChooseDelay = 0.9f;
         [Min(0f)] [SerializeField] private float eventPause = 0.12f;
         [SerializeField] private bool autoStart = true;
+
+        [Header("Feedback timing (presentation only, scaled down by SetTimings in tests)")]
+        [Tooltip("Dice faces flicker before showing the rolled values (halved for bots).")]
+        [Min(0f)] [SerializeField] private float rollAnimation = 0.4f;
+        [Tooltip("Pause after a card is played so its banner reads before the effect.")]
+        [Min(0f)] [SerializeField] private float cardPlayPause = 0.45f;
+        [Tooltip("Show where each die would land (pure rules query, no state change).")]
+        [SerializeField] private bool previewDestinations = true;
 
         private readonly Queue<MatchEvent> _queue = new Queue<MatchEvent>();
         private readonly Dictionary<int, PlayerPieceView> _pieceById = new Dictionary<int, PlayerPieceView>();
@@ -84,6 +92,17 @@ namespace DontTrustYourLuck.Presentation.Match
         private int _lastScreenWidth;
         private int _lastScreenHeight;
         private bool _viewportPending;
+        private float _feedbackScale = 1f;
+        private MovementService _movementPreview;
+        private readonly List<int> _destinations = new List<int>(2);
+
+        /// <summary>Raised when an event starts playing back (in order, after the previous one finished).
+        /// Audio and visual feedback listen to this, never to the domain directly.</summary>
+        public event Action<MatchEvent> EventPresenting;
+        /// <summary>(playerId, tile): a piece finished one hop of a move/retreat animation.</summary>
+        public event Action<int, int> PieceHopped;
+        /// <summary>A command was rejected by the rules layer.</summary>
+        public event Action<CommandError> CommandRejected;
 
         public MatchSession Session => _session;
         public GameHUD Hud => hud;
@@ -91,6 +110,8 @@ namespace DontTrustYourLuck.Presentation.Match
         /// <summary>True while events are being played back; gameplay buttons stay disabled meanwhile.</summary>
         public bool IsBusy => _processing || _queue.Count > 0;
         public int LastSeed { get; private set; }
+        public int LuckyNumber => _lucky;
+        public int UnluckyNumber => _unlucky;
         public IReadOnlyList<PlayerPieceView> ActivePieces => _activePieces;
         public IReadOnlyList<PlayerDisplay> Players => _players;
         /// <summary>Instance id of the card selected in the hand panel, or null.</summary>
@@ -105,6 +126,14 @@ namespace DontTrustYourLuck.Presentation.Match
             piecePrefab = prefab; piecesRoot = root; scenePieces = existingPieces ?? new List<PlayerPieceView>();
         }
 
+        /// <summary>Editor/builder setup of the seats (names, colors, bot flags, animals). Takes effect on the next match.</summary>
+        public void SetParticipants(IEnumerable<ParticipantConfig> seats)
+        {
+            participants = seats != null ? new List<ParticipantConfig>(seats) : new List<ParticipantConfig>();
+        }
+
+        public IReadOnlyList<ParticipantConfig> Participants => participants;
+
         /// <summary>Speeds up or slows down playback (tests use small values).</summary>
         public void SetTimings(float step, float botRoll, float botChoose, float pause)
         {
@@ -112,7 +141,30 @@ namespace DontTrustYourLuck.Presentation.Match
             botRollDelay = Mathf.Max(0f, botRoll);
             botChooseDelay = Mathf.Max(0f, botChoose);
             eventPause = Mathf.Max(0f, pause);
+            // Feedback (dice flicker, card banner pause) keeps its proportion to the step speed.
+            _feedbackScale = Mathf.Clamp01(stepDuration / 0.16f);
         }
+
+        public bool TryGetPiece(int playerId, out PlayerPieceView piece) => _pieceById.TryGetValue(playerId, out piece);
+
+        public bool TryGetPlayer(int playerId, out PlayerDisplay player)
+        {
+            foreach (var p in _players)
+            {
+                if (p.Id != playerId) continue;
+                player = p;
+                return true;
+            }
+            player = default;
+            return false;
+        }
+
+        public bool IsBotPlayer(int playerId) => _session != null && _session.IsBot(playerId);
+
+        public CardDefinitionAsset GetCardAsset(string cardId) =>
+            cardId != null && _cardAssets.TryGetValue(cardId, out var asset) ? asset : null;
+
+        public string PlayerName(int playerId) => NameOf(playerId);
 
         private void Awake()
         {
@@ -214,6 +266,7 @@ namespace DontTrustYourLuck.Presentation.Match
                     if (card != null) _cardAssets[card.Id] = card;
                 }
             }
+            _movementPreview = new MovementService(_rules);
             _session = new MatchSession(_rules, slots, CreateRandomSource, null, _cardCatalog, CreateCardRandomSource);
             _session.EventPublished += OnEvent;
             _session.CommandRejected += OnCommandRejected;
@@ -302,6 +355,8 @@ namespace DontTrustYourLuck.Presentation.Match
                 if (!used) continue;
                 int id = i + 1;
                 piece.Configure(id, _seats[i].color);
+                piece.SetCharacter(_seats[i].character);
+                piece.SetShielded(false);
                 piece.SetVisualState(PieceVisualState.Normal);
                 piece.SetLogicalPosition(0);
                 _pieceById[id] = piece;
@@ -410,6 +465,7 @@ namespace DontTrustYourLuck.Presentation.Match
         private void OnCommandRejected(CommandError error)
         {
             Debug.LogWarning($"[MatchDirector] Command rejected: {error}", this);
+            CommandRejected?.Invoke(error);
         }
 
         // ---------------- Event playback ----------------
@@ -432,6 +488,7 @@ namespace DontTrustYourLuck.Presentation.Match
             while (_queue.Count > 0)
             {
                 var e = _queue.Dequeue();
+                EventPresenting?.Invoke(e);
                 yield return Present(e);
                 RefreshHud();
             }
@@ -476,6 +533,7 @@ namespace DontTrustYourLuck.Presentation.Match
                     _lastRoll.Clear();
                     for (int i = 0; i < rolled.Roll.Count; i++) _lastRoll.Add(rolled.Roll[i]);
                     _selectedDie = -1;
+                    yield return PlayRollAnimation(rolled.PlayerId);
                     Log(string.Format(text.diceRolled, NameOf(rolled.PlayerId), rolled.Roll[0],
                         rolled.Roll.Count > 1 ? rolled.Roll[1] : rolled.Roll[0]));
                     break;
@@ -516,6 +574,7 @@ namespace DontTrustYourLuck.Presentation.Match
                 case CardPlayedEvent played:
                     if (played.Card.Definition.Effect == CardEffectType.Reroll)
                         Log(string.Format(text.luckyRollActivated, NameOf(played.PlayerId)));
+                    yield return Pause(cardPlayPause * _feedbackScale); // let the card banner read first
                     break;
 
                 case CardConsumedEvent consumed:
@@ -526,6 +585,7 @@ namespace DontTrustYourLuck.Presentation.Match
                     _lastRoll.Clear();
                     for (int i = 0; i < rerolled.Roll.Count; i++) _lastRoll.Add(rerolled.Roll[i]);
                     _selectedDie = -1;
+                    yield return PlayRollAnimation(rerolled.PlayerId);
                     Log(string.Format(text.diceRerolled, rerolled.Roll[0], rerolled.Roll.Count > 1 ? rerolled.Roll[1] : rerolled.Roll[0]));
                     yield return Pause(eventPause);
                     break;
@@ -554,11 +614,13 @@ namespace DontTrustYourLuck.Presentation.Match
 
                 case ShieldActivatedEvent shield:
                     SetDisplayShield(shield.PlayerId, true);
+                    if (_pieceById.TryGetValue(shield.PlayerId, out var shieldedPiece)) shieldedPiece.SetShielded(true);
                     Log(string.Format(text.shieldActivated, NameOf(shield.PlayerId)));
                     break;
 
                 case ShieldConsumedEvent shieldEnd:
                     SetDisplayShield(shieldEnd.PlayerId, false);
+                    if (_pieceById.TryGetValue(shieldEnd.PlayerId, out var unshielded)) unshielded.SetShielded(false);
                     Log(shieldEnd.BlockedElimination
                         ? string.Format(text.shieldBlocked, NameOf(shieldEnd.PlayerId), shieldEnd.Tile)
                         : string.Format(text.shieldExpired, NameOf(shieldEnd.PlayerId)));
@@ -595,10 +657,12 @@ namespace DontTrustYourLuck.Presentation.Match
                 _players.Add(new PlayerDisplay
                 {
                     Id = id, Name = setup.displayName, Color = setup.color, IsBot = setup.isBot,
-                    Position = 0, Status = PlayerDisplayStatus.Active
+                    Position = 0, Status = PlayerDisplayStatus.Active,
+                    Portrait = setup.character != null ? setup.character.Portrait : null
                 });
                 if (_pieceById.TryGetValue(id, out var piece))
                 {
+                    piece.SetShielded(false);
                     piece.SetVisualState(PieceVisualState.Normal);
                     piece.SetLogicalPosition(0);
                 }
@@ -650,10 +714,21 @@ namespace DontTrustYourLuck.Presentation.Match
                     yield return null;
                 }
                 t.position = to;
+                PieceHopped?.Invoke(playerId, path[i]);
             }
             // Logical position is the source of truth; snap all pieces to their slots.
             piece.SetLogicalPosition(finalPosition);
             board.PlacePieces(_activePieces);
+        }
+
+        /// <summary>Dice faces flicker (cosmetic only; values come from the already-resolved event).</summary>
+        private IEnumerator PlayRollAnimation(int playerId)
+        {
+            float duration = rollAnimation * _feedbackScale * (IsBotPlayer(playerId) ? 0.5f : 1f);
+            if (duration <= 0f || hud.DicePanel == null) yield break;
+            hud.DicePanel.PlayRollAnimation(duration);
+            yield return Pause(duration);
+            hud.DicePanel.StopRollAnimation();
         }
 
         private static IEnumerator Pause(float seconds)
@@ -730,6 +805,7 @@ namespace DontTrustYourLuck.Presentation.Match
                 ? string.Format(text.botThinking, NameOf(_currentId))
                 : string.Empty;
             hud.DicePanel.Show(text, _lastRoll.Count > 0 ? _lastRoll : null, canRoll, canChoose, _selectedDie, status);
+            hud.DicePanel.ShowDestinations(text, ComputeDestinations(canChoose), _lucky, _unlucky);
 
             if (hud.CardHand != null) RefreshCardHand(text, state, humanTurn, shownIsBot, idle, finished);
         }
@@ -796,6 +872,24 @@ namespace DontTrustYourLuck.Presentation.Match
             string title = _currentId >= 0 ? string.Format(text.cardsTitleOwner, NameOf(_currentId)) : text.cardsTitle;
             bool canPlay = selected != null && (!selected.Definition.RequiresTarget || _selectedTarget >= 0);
             hud.CardHand.Show(title, _slotBuffer, hint, targets, _selectedTarget, canPlay, selected != null);
+        }
+
+        /// <summary>
+        /// Where each die would end (rebound included), via the domain MovementService. Read-only query used
+        /// only for display; the move itself is resolved by the rules layer when a die is chosen.
+        /// </summary>
+        private IReadOnlyList<int> ComputeDestinations(bool canChoose)
+        {
+            _destinations.Clear();
+            if (!previewDestinations || !canChoose || _movementPreview == null || _lastRoll.Count == 0) return null;
+            var player = _session.State.GetPlayer(_session.State.CurrentPlayerId);
+            if (player == null || _lucky <= 0) return null;
+            foreach (int value in _lastRoll)
+            {
+                try { _destinations.Add(_movementPreview.Move(player.Position, value, _lucky).FinalPosition); }
+                catch (ArgumentOutOfRangeException) { return null; }
+            }
+            return _destinations;
         }
 
         private List<CardInstance> HandOrNew(int playerId)

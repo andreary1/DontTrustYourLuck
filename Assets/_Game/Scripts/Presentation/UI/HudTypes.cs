@@ -13,6 +13,8 @@ namespace DontTrustYourLuck.Presentation.UI
         public PlayerDisplayStatus Status;
         /// <summary>Shield active for the next move (from ShieldActivated/ShieldConsumed events).</summary>
         public bool Shielded;
+        /// <summary>Character portrait (Sprint 4), or null.</summary>
+        public Sprite Portrait;
     }
 
     public enum PlayerDisplayStatus
@@ -35,6 +37,11 @@ namespace DontTrustYourLuck.Presentation.UI
         public static readonly Color LuckyDark = Hex(0x8A5A00);
         public static readonly Color Danger = Hex(0xD83A35);
         public static readonly Color Overlay = new Color(0.1f, 0.07f, 0.05f, 0.65f);
+        public static readonly Color Green = Hex(0x438B52);
+        public static readonly Color Blue = Hex(0x287FA3);
+        public static readonly Color Pink = Hex(0xED638B);
+        public static readonly Color Purple = Hex(0x713E91);
+        public static readonly Color DangerDark = Hex(0x7A1E1B);
 
         public static Color Hex(int rgb) =>
             new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, 1f);
