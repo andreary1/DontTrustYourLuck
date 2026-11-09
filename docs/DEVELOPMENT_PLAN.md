@@ -222,6 +222,8 @@ Detalhes das decisões: GDD §3 e TDD §3, §7.2, §9.2.1.
 
 **Regra:** arte não altera lógica do domínio. Referências a artistas orientam criações originais, sem reproduzir obras protegidas.
 
+**Status (09/11/2026):** S4-01…S4-05 implementados com **arte e áudio provisórios** gerados por código (`Tools > Don't Trust Your Luck > Build Sprint 4 Art Direction (All)`); guia em `docs/ART_DIRECTION.md`; evidências em `docs/qa/S4-art-audio-test.md`. Build Web de desenvolvimento gerado e smoke test parcial no navegador. **S4-06 não executado:** o navegador disponível estava limitado a ~1–5 quadros/s por fatores do ambiente, então nenhuma métrica de desempenho foi registrada. Pendências: assets finais (lista no guia), template Web responsivo (o `Default` usa canvas fixo 960×600) e perfil de desempenho num navegador real.
+
 ### Sprint 5 — Estabilização e publicação (F5)
 
 | ID | Tarefa | Agente líder | Dependência | Aceite |

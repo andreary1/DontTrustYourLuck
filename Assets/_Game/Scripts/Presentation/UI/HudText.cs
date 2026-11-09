@@ -24,6 +24,32 @@ namespace DontTrustYourLuck.Presentation.UI
         public string playAgainButton = "Play Again";
         public string playersTitle = "PLAYERS";
         public string messagesTitle = "LOG";
+        public string gameTitle = "Don't Trust Your Luck!";
+        public string gameSubtitle = "Fortaleza";
+
+        [Header("Dice destination preview (Sprint 4)")]
+        public string destinationTile = "-> {0}";
+        public string destinationLucky = "-> {0} LUCKY!";
+        public string destinationUnlucky = "-> {0} DANGER!";
+
+        [Header("Banners (Sprint 4)")]
+        public string bannerTurn = "{0}'s turn";
+        public string bannerTurnBot = "{0} (Bot)";
+        public string bannerUnlucky = "Unlucky number: {0}";
+        public string bannerUnluckySub = "Do not end your move there!";
+        public string bannerCard = "{0}";
+        public string bannerCardSub = "played by {0}";
+        public string bannerEliminated = "{0} is out!";
+        public string bannerShieldBlocked = "Shield saved {0}!";
+
+        [Header("Audio settings (Sprint 4)")]
+        public string audioButton = "Sound";
+        public string audioButtonMuted = "Muted";
+        public string audioTitle = "SOUND";
+        public string audioMaster = "Master";
+        public string audioMusic = "Music";
+        public string audioSfx = "Effects";
+        public string audioMute = "Mute all";
 
         [Header("Player card")]
         public string tileValue = "Tile {0}";

@@ -25,6 +25,9 @@ namespace DontTrustYourLuck.Presentation.UI
         [SerializeField] private Image art;
         [SerializeField] private Text nameText;
         [SerializeField] private Text descriptionText;
+        [Tooltip("Sprint 4: selected cards rise by this many pixels (child 'Lift' content).")]
+        [SerializeField] private RectTransform liftTarget;
+        [SerializeField] private float liftPixels = 10f;
 
         public event Action Clicked;
 
@@ -38,6 +41,12 @@ namespace DontTrustYourLuck.Presentation.UI
         {
             button = slotButton; background = backgroundImage; highlight = highlightImage;
             art = artImage; nameText = name; descriptionText = description;
+        }
+
+        public void BindLift(RectTransform target, float pixels)
+        {
+            liftTarget = target;
+            liftPixels = pixels;
         }
 
         private void Awake()
@@ -61,6 +70,7 @@ namespace DontTrustYourLuck.Presentation.UI
             art.sprite = card.Art;
             art.enabled = card.Art != null;
             highlight.enabled = card.Selected;
+            if (liftTarget != null) liftTarget.anchoredPosition = new Vector2(0f, card.Selected ? liftPixels : 0f);
             button.interactable = card.Available;
             // Unavailable cards look faded (aged, greyed paper) but stay readable.
             background.color = card.Available || card.Selected ? HudPalette.Card : HudPalette.CardDisabled;

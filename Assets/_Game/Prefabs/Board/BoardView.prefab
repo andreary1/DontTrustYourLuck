@@ -57,6 +57,10 @@ MonoBehaviour:
     lucky: {fileID: 2100000, guid: 173e056c800375a4e9c109fc069d84b8, type: 2}
     unlucky: {fileID: 2100000, guid: 7b8cde9a60168214bac56a8a4d59002b, type: 2}
     connector: {fileID: 2100000, guid: 898cb0d1aaa351443b98faded40749ca, type: 2}
+    beyondLucky: {fileID: 2100000, guid: f2d8705015a957844b51c78783108841, type: 2}
   pieceSlotRadius: 0.24
   tiles: []
   connectors: []
+  luckyMarker: {fileID: 0}
+  unluckyMarker: {fileID: 0}
+  markerHeight: 1.15

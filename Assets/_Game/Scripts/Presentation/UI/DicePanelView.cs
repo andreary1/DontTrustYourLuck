@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,13 +15,26 @@ namespace DontTrustYourLuck.Presentation.UI
         [SerializeField] private Button[] chooseButtons = new Button[2];
         [SerializeField] private Text[] chooseLabels = new Text[2];
         [SerializeField] private Text statusText;
+        [Tooltip("Optional (Sprint 4): destination preview under each die (\"-> 17\").")]
+        [SerializeField] private Text[] destinationTexts = Array.Empty<Text>();
 
         public event Action RollClicked;
         public event Action<int> ChooseClicked;
+        /// <summary>The roll flicker ended (sound/feedback hook).</summary>
+        public event Action RollAnimationFinished;
+
+        private float _rollUntil;
+        private float _nextFlicker;
+        private readonly int[] _shownValues = { 0, 0 };
+        private bool _hasValues;
+        private string _emptyValue = "-";
 
         public Button RollButton => rollButton;
         public IReadOnlyList<Button> ChooseButtons => chooseButtons;
         public string DieText(int index) => dieValues[index].text;
+        public bool IsRolling { get; private set; }
+        public string DestinationText(int index) =>
+            index >= 0 && index < destinationTexts.Length && destinationTexts[index] != null ? destinationTexts[index].text : string.Empty;
 
         public void Bind(Button roll, Text rollText, Text[] values, Image[] faces, Button[] choose, Text[] chooseText, Text status)
         {
@@ -32,6 +44,8 @@ namespace DontTrustYourLuck.Presentation.UI
             statusText = status;
         }
 
+        public void BindDestinations(Text[] destinations) => destinationTexts = destinations ?? Array.Empty<Text>();
+
         private void Awake()
         {
             rollButton.onClick.AddListener(OnRoll);
@@ -40,6 +54,7 @@ namespace DontTrustYourLuck.Presentation.UI
                 int index = i;
                 chooseButtons[i].onClick.AddListener(() => ChooseClicked?.Invoke(index));
             }
+            enabled = false; // Update only runs during the roll flicker
         }
 
         private void OnDestroy()
@@ -67,15 +82,88 @@ namespace DontTrustYourLuck.Presentation.UI
         /// <param name="selectedIndex">Die already chosen (highlighted), or -1.</param>
         public void Show(HudText text, IReadOnlyList<int> values, bool canRoll, bool canChoose, int selectedIndex, string status)
         {
+            _emptyValue = text.emptyValue;
             rollButton.interactable = canRoll;
+            _hasValues = values != null;
             for (int i = 0; i < dieValues.Length; i++)
             {
                 bool has = values != null && i < values.Count;
-                dieValues[i].text = has ? values[i].ToString() : text.emptyValue;
-                chooseButtons[i].interactable = canChoose && has;
+                _shownValues[Mathf.Min(i, 1)] = has ? values[i] : 0;
+                if (!IsRolling) dieValues[i].text = has ? values[i].ToString() : text.emptyValue;
+                chooseButtons[i].interactable = canChoose && has && !IsRolling;
                 dieFaces[i].color = i == selectedIndex ? HudPalette.Lucky : HudPalette.Card;
             }
             statusText.text = status ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Destination preview per die: "-> 17", gold when it lands on the lucky number, red with a warning when
+        /// it lands on the unlucky number. Null hides the preview. Display only: the rules resolve the real move.
+        /// </summary>
+        public void ShowDestinations(HudText text, IReadOnlyList<int> destinations, int lucky, int unlucky)
+        {
+            for (int i = 0; i < destinationTexts.Length; i++)
+            {
+                var label = destinationTexts[i];
+                if (label == null) continue;
+                bool has = destinations != null && i < destinations.Count && !IsRolling;
+                if (!has)
+                {
+                    label.text = string.Empty;
+                    continue;
+                }
+                int tile = destinations[i];
+                string format = tile == lucky ? text.destinationLucky : tile == unlucky ? text.destinationUnlucky : text.destinationTile;
+                label.text = string.Format(format, tile);
+                label.color = tile == lucky ? HudPalette.LuckyDark : tile == unlucky ? HudPalette.Danger : HudPalette.Ink;
+            }
+        }
+
+        /// <summary>Cosmetic flicker of random faces; the real values are shown when it ends.</summary>
+        public void PlayRollAnimation(float duration)
+        {
+            if (duration <= 0f) return;
+            _rollUntil = Time.unscaledTime + duration + 0.5f; // safety stop if nobody calls StopRollAnimation
+            _nextFlicker = 0f;
+            IsRolling = true;
+            foreach (var b in chooseButtons) b.interactable = false;
+            foreach (var d in destinationTexts)
+            {
+                if (d != null) d.text = string.Empty;
+            }
+            enabled = true;
+        }
+
+        /// <summary>Ends the flicker and shows the stored real values. Buttons are restored by the next Show().</summary>
+        public void StopRollAnimation()
+        {
+            bool wasRolling = IsRolling;
+            IsRolling = false;
+            enabled = false;
+            for (int i = 0; i < dieValues.Length; i++)
+            {
+                int v = _shownValues[Mathf.Min(i, 1)];
+                dieValues[i].text = _hasValues && v > 0 ? v.ToString() : _emptyValue;
+                dieValues[i].rectTransform.localRotation = Quaternion.identity;
+            }
+            if (wasRolling) RollAnimationFinished?.Invoke();
+        }
+
+        private void Update()
+        {
+            float now = Time.unscaledTime;
+            if (!IsRolling || now >= _rollUntil)
+            {
+                StopRollAnimation();
+                return;
+            }
+            if (now < _nextFlicker) return;
+            _nextFlicker = now + 0.06f;
+            for (int i = 0; i < dieValues.Length; i++)
+            {
+                dieValues[i].text = UnityEngine.Random.Range(1, 7).ToString(); // display only, not gameplay RNG
+                dieValues[i].rectTransform.localRotation = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(-12f, 12f));
+            }
         }
     }
 }
