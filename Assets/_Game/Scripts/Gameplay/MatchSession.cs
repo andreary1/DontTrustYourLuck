@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DontTrustYourLuck.Domain;
+using DontTrustYourLuck.Domain.Cards;
 using DontTrustYourLuck.Domain.Match;
 
 namespace DontTrustYourLuck.Gameplay
@@ -29,6 +30,8 @@ namespace DontTrustYourLuck.Gameplay
         private readonly PlayerSlot[] _slots;
         private readonly int[] _playerIds;
         private readonly IPlayerDecisionProvider _botProvider;
+        private readonly CardCatalog _cardCatalog;
+        private readonly Func<IRandomSource> _cardRandomFactory;
 
         private MatchEngine _engine;
 
@@ -46,11 +49,18 @@ namespace DontTrustYourLuck.Gameplay
         public int MatchNumber { get; private set; }
 
         /// <param name="randomFactory">Called once per match (start and each restart) to get a fresh random source.</param>
+        /// <param name="cardCatalog">Cards available in each match. Null (with <paramref name="cardRandomFactory"/>) disables cards.</param>
+        /// <param name="cardRandomFactory">Called once per match, right after <paramref name="randomFactory"/>, for the card draw stream.</param>
         public MatchSession(MatchRulesConfig rules, IReadOnlyList<PlayerSlot> slots, Func<IRandomSource> randomFactory,
-            IPlayerDecisionProvider botProvider = null)
+            IPlayerDecisionProvider botProvider = null, CardCatalog cardCatalog = null,
+            Func<IRandomSource> cardRandomFactory = null)
         {
             _rules = rules ?? throw new ArgumentNullException(nameof(rules));
             _randomFactory = randomFactory ?? throw new ArgumentNullException(nameof(randomFactory));
+            if ((cardCatalog == null) != (cardRandomFactory == null))
+                throw new ArgumentException("Cards need both a catalog and a card random factory.");
+            _cardCatalog = cardCatalog;
+            _cardRandomFactory = cardRandomFactory;
             if (slots == null) throw new ArgumentNullException(nameof(slots));
             _slots = new PlayerSlot[slots.Count];
             _playerIds = new int[slots.Count];
@@ -92,6 +102,10 @@ namespace DontTrustYourLuck.Gameplay
         public CommandResult ChooseDie(int playerId, int dieIndex) =>
             _engine == null ? Reject(CommandError.WrongPhase) : Publish(_engine.ChooseDie(playerId, dieIndex));
 
+        /// <summary>Plays a card (humans now; future bot card policies must use this same command).</summary>
+        public CommandResult PlayCard(int playerId, string cardInstanceId, int? targetPlayerId = null) =>
+            _engine == null ? Reject(CommandError.WrongPhase) : Publish(_engine.PlayCard(playerId, cardInstanceId, targetPlayerId));
+
         /// <summary>
         /// Asks the bot provider for a die index. Does not change state; the caller sends the result through
         /// <see cref="ChooseDie"/> like a human would. Returns -1 if it is not a bot's pending choice.
@@ -120,7 +134,9 @@ namespace DontTrustYourLuck.Gameplay
 
         private CommandResult StartNewEngine()
         {
-            _engine = new MatchEngine(_rules, _randomFactory());
+            var random = _randomFactory();
+            var cards = _cardCatalog != null ? new CardSetup(_cardCatalog, _cardRandomFactory()) : null;
+            _engine = new MatchEngine(_rules, random, cards); // fresh state: hands, shields, card limit
             MatchNumber++;
             return Publish(_engine.StartMatch(_playerIds));
         }
