@@ -130,6 +130,9 @@ namespace DontTrustYourLuck.Presentation.Audio
                 case PlayerRetreatedEvent retreated:
                     _hopsLeft[retreated.PlayerId] = retreated.Steps;
                     break;
+                case PlayerBumpedEvent bumped:
+                    _hopsLeft[bumped.PlayerId] = bumped.Steps;
+                    break;
                 case UnluckyNumberDrawnEvent _:
                     if (music != null) music.Duck(unluckyDuckSeconds);
                     break;
@@ -180,6 +183,7 @@ namespace DontTrustYourLuck.Presentation.Audio
                 case CardPlayedEvent _: output.Add(SfxId.CardPlay); break;
                 case PlayerPositionsSwappedEvent _: output.Add(SfxId.Swap); break;
                 case PlayerRetreatedEvent _: output.Add(SfxId.Retreat); break;
+                case PlayerBumpedEvent _: output.Add(SfxId.Swap); break; // placeholder cue until a bump SFX exists
                 case ShieldActivatedEvent _: output.Add(SfxId.ShieldUp); break;
                 case ShieldConsumedEvent shield:
                     if (shield.BlockedElimination) output.Add(SfxId.ShieldBlock);

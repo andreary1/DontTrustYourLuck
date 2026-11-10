@@ -78,7 +78,10 @@ namespace DontTrustYourLuck.Presentation.Feedback
                     break;
 
                 case UnluckyNumberDrawnEvent unlucky:
-                    ShowBanner(string.Format(text.bannerUnlucky, unlucky.UnluckyNumber), text.bannerUnluckySub,
+                    bool zone = director != null && director.HasUnluckyZone;
+                    ShowBanner(zone ? string.Format(text.bannerUnluckyZone, director.UnluckyDisplayFor(unlucky.UnluckyNumber))
+                            : string.Format(text.bannerUnlucky, unlucky.UnluckyNumber),
+                        zone ? text.bannerUnluckyZoneSub : text.bannerUnluckySub,
                         HudPalette.Danger, unluckyIcon, unluckyBanner);
                     break;
 

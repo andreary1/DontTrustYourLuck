@@ -85,6 +85,27 @@ namespace DontTrustYourLuck.Domain.Match
         }
     }
 
+    /// <summary>
+    /// Same-tile bump: <see cref="BumperId"/> ended a die move on <see cref="From"/>, pushing <see cref="PlayerId"/>
+    /// back to <see cref="To"/>. Like card moves, a bump never triggers lucky/unlucky resolution.
+    /// </summary>
+    public sealed class PlayerBumpedEvent : MatchEvent
+    {
+        public int BumperId { get; }
+        public int PlayerId { get; }
+        public int From { get; }
+        public int To { get; }
+        public int Steps => From - To;
+
+        public PlayerBumpedEvent(int bumperId, int playerId, int from, int to)
+        {
+            BumperId = bumperId;
+            PlayerId = playerId;
+            From = from;
+            To = to;
+        }
+    }
+
     public sealed class PlayerEliminatedEvent : MatchEvent
     {
         public int PlayerId { get; }

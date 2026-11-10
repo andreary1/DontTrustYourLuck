@@ -26,6 +26,13 @@ namespace DontTrustYourLuck.Presentation.Board
         public Transform Anchor => anchor != null ? anchor : transform;
         public Renderer SurfaceRenderer => surfaceRenderer;
         public TileHighlight Highlight { get; private set; }
+        public TextMesh Label => label;
+
+        /// <summary>Replaces the number's material (see <see cref="BoardView"/>: depth-tested text).</summary>
+        public void SetLabelMaterial(Material material)
+        {
+            if (label != null && material != null) label.GetComponent<MeshRenderer>().sharedMaterial = material;
+        }
 
         public void Initialize(int tileIndex)
         {

@@ -18,6 +18,12 @@ namespace DontTrustYourLuck.Presentation.Config
         [SerializeField] private bool circuit;
         [SerializeField] private bool persistentShield;
         [Min(0)] [SerializeField] private int cardDrawInterval;
+        [Tooltip("Tiles on each side of the unlucky number that are also dangerous (0 = single tile, 1 = 3-tile zone).")]
+        [Min(0)] [SerializeField] private int unluckyZoneRadius;
+        [Tooltip("Rotate the first player every round to remove the first-seat advantage.")]
+        [SerializeField] private bool rotateFirstPlayer;
+        [Tooltip("Ending a die move on an occupied tile pushes the occupants back this many tiles (0 = off).")]
+        [Min(0)] [SerializeField] private int bumpDistance;
         public bool Circuit => circuit;
 
         [Header("Lucky number")]
@@ -60,7 +66,8 @@ namespace DontTrustYourLuck.Presentation.Config
         /// <summary>Creates a validated, immutable rules object. Throws ArgumentException if invalid.</summary>
         public MatchRulesConfig ToRulesConfig() => new MatchRulesConfig(
             boardLength, minLuckyNumber, maxLuckyNumber, diceCount, diceSides,
-            minPlayers, maxPlayers, startingHandSize, maxHandSize, maxRounds, circuit, persistentShield, cardDrawInterval);
+            minPlayers, maxPlayers, startingHandSize, maxHandSize, maxRounds, circuit, persistentShield, cardDrawInterval,
+            unluckyZoneRadius, rotateFirstPlayer, bumpDistance);
 
         private void OnValidate()
         {

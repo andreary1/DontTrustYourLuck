@@ -15,6 +15,9 @@ namespace DontTrustYourLuck.Presentation.Board
         public Material connector;
         [Tooltip("Optional (Sprint 4): tiles above the lucky number (unreachable). Patterned, not just darker.")]
         public Material beyondLucky;
+        [Tooltip("Tile number material with depth test (pieces in front hide the number). " +
+                 "Null keeps the font's default material, which draws over everything.")]
+        public Material label;
     }
 
     /// <summary>
@@ -41,6 +44,7 @@ namespace DontTrustYourLuck.Presentation.Board
 
         private int _luckyIndex = -1;
         private int _unluckyIndex = -1;
+        private readonly List<int> _unluckyZone = new List<int>();
         private bool _circuit;
         public bool IsCircuit => _circuit;
 
@@ -78,6 +82,8 @@ namespace DontTrustYourLuck.Presentation.Board
         public ZigzagBoardLayout Layout => layout;
         public int LuckyIndex => _luckyIndex;
         public int UnluckyIndex => _unluckyIndex;
+        /// <summary>Every highlighted unlucky tile (empty when only <see cref="UnluckyIndex"/> is set).</summary>
+        public IReadOnlyList<int> UnluckyZone => _unluckyZone;
         public Transform LuckyMarker => luckyMarker;
         public Transform UnluckyMarker => unluckyMarker;
 
@@ -105,9 +111,39 @@ namespace DontTrustYourLuck.Presentation.Board
             tileCount = Mathf.Max(2, count);
         }
 
+        private Material _labelInstance;
+        private Font _labelFont;
+
         private void Awake()
         {
             EnsureBuilt(tileCount);
+            ApplyLabelMaterial();
+        }
+
+        private void OnDestroy()
+        {
+            Font.textureRebuilt -= OnFontTextureRebuilt;
+            if (_labelInstance != null) Destroy(_labelInstance);
+        }
+
+        /// <summary>
+        /// Gives every tile number a depth-tested copy of <see cref="BoardTileMaterials.label"/> fed with the font atlas.
+        /// The default TextMesh font material (GUI/Text Shader) ignores depth, so numbers drew over the pieces.
+        /// </summary>
+        private void ApplyLabelMaterial()
+        {
+            if (materials.label == null || tiles.Count == 0 || tiles[0] == null || tiles[0].Label == null) return;
+            _labelFont = tiles[0].Label.font;
+            if (_labelFont == null) return;
+            _labelInstance = new Material(materials.label) { name = materials.label.name + " (Runtime)" };
+            _labelInstance.mainTexture = _labelFont.material.mainTexture;
+            foreach (var tile in tiles) if (tile != null) tile.SetLabelMaterial(_labelInstance);
+            Font.textureRebuilt += OnFontTextureRebuilt;
+        }
+
+        private void OnFontTextureRebuilt(Font font)
+        {
+            if (font == _labelFont && _labelInstance != null) _labelInstance.mainTexture = font.material.mainTexture;
         }
 
         public void EnsureBuilt(int count)
@@ -254,13 +290,24 @@ namespace DontTrustYourLuck.Presentation.Board
 #endif
         }
 
+        /// <summary>Horizontal offset (x, z) of the lucky/unlucky markers from the tile center: they sit on a tile corner.</summary>
+        public static readonly Vector2 MarkerOffsetXZ = new Vector2(0.36f, -0.32f);
+
         public static float OccupantScale(int count) => count <= 1 ? 0.85f : count == 2 ? 0.52f : count == 3 ? 0.40f : 0.30f;
 
         /// <summary>Displays lucky/unlucky tiles. Pass -1 to clear one of them.</summary>
-        public void SetHighlights(int luckyIndex, int unluckyIndex)
+        public void SetHighlights(int luckyIndex, int unluckyIndex) => SetHighlights(luckyIndex, unluckyIndex, null);
+
+        /// <summary>
+        /// Displays the lucky tile and the unlucky zone. <paramref name="unluckyZone"/> lists every dangerous tile
+        /// (null or empty: only <paramref name="unluckyIndex"/>); the marker stays on the zone center.
+        /// </summary>
+        public void SetHighlights(int luckyIndex, int unluckyIndex, IReadOnlyList<int> unluckyZone)
         {
             _luckyIndex = luckyIndex;
             _unluckyIndex = unluckyIndex;
+            _unluckyZone.Clear();
+            if (unluckyZone != null && unluckyIndex >= 0) _unluckyZone.AddRange(unluckyZone);
             ApplyHighlights();
             RecordEditorChanges();
         }
@@ -288,7 +335,7 @@ namespace DontTrustYourLuck.Presentation.Board
             {
                 if (tiles[i] == null) continue;
                 if (i == _luckyIndex) tiles[i].SetMaterial(materials.lucky, TileHighlight.Lucky);
-                else if (i == _unluckyIndex) tiles[i].SetMaterial(materials.unlucky, TileHighlight.Unlucky);
+                else if (i == _unluckyIndex || _unluckyZone.Contains(i)) tiles[i].SetMaterial(materials.unlucky, TileHighlight.Unlucky);
                 else if (!_circuit && _luckyIndex > 0 && i > _luckyIndex && materials.beyondLucky != null)
                     tiles[i].SetMaterial(materials.beyondLucky, TileHighlight.None); // unreachable: visual only
                 else tiles[i].SetMaterial(BaseMaterial(i), TileHighlight.None);
@@ -304,7 +351,8 @@ namespace DontTrustYourLuck.Presentation.Board
             if (marker.gameObject.activeSelf != show) marker.gameObject.SetActive(show);
             if (show)
             {
-                marker.position = tiles[index].transform.position + new Vector3(0.36f, Mathf.Min(markerHeight, 0.28f), -0.32f);
+                marker.position = tiles[index].transform.position +
+                    new Vector3(MarkerOffsetXZ.x, Mathf.Min(markerHeight, 0.28f), MarkerOffsetXZ.y);
                 marker.localScale = Vector3.one * 0.34f;
             }
         }

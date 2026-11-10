@@ -51,7 +51,8 @@ namespace DontTrustYourLuck.Domain.Match
     ///   AwaitingDiceChoice [+ optional Lucky Roll] -> ChooseDie -> resolution. At most one card per turn.
     /// Resolution order after a move:
     ///   position -> lucky (win, ends immediately) -> unlucky (Shield blocks the elimination, else elimination)
-    ///   -> shield expires -> last survivor -> next turn/round
+    ///   -> shield expires -> last survivor -> bump (survivor only; occupants pushed back BumpDistance, no tile
+    ///   resolution) -> next turn/round
     ///   -> round limit (MaxRounds; highest-position active players win, ties share).
     /// Card moves (Swap, Retreat) never resolve lucky/unlucky tiles.
     /// </summary>
@@ -65,6 +66,8 @@ namespace DontTrustYourLuck.Domain.Match
         private readonly MatchState _state = new MatchState();
         private readonly CardSetup _cards;
         private readonly CardEffectResolver _cardResolver;
+        /// <summary>Turn order of the current round (ascending id, rotated when RotateFirstPlayer is on).</summary>
+        private readonly List<int> _roundOrder = new List<int>();
 
         public MatchState State => _state;
         public MatchRulesConfig Rules => _rules;
@@ -96,7 +99,10 @@ namespace DontTrustYourLuck.Domain.Match
             _cardResolver.Register(new DebuffEffect(CardEffectType.StickyLuck));
         }
 
-        /// <summary>Starts the match. Turn order is ascending player id (decision D13).</summary>
+        /// <summary>
+        /// Starts the match. Turn order is ascending player id (decision D13); with
+        /// <see cref="MatchRulesConfig.RotateFirstPlayer"/> the starting seat moves one id forward each round.
+        /// </summary>
         public CommandResult StartMatch(IReadOnlyList<int> playerIds)
         {
             if (_state.Phase == MatchPhase.Finished) return CommandResult.Fail(CommandError.MatchFinished);
@@ -195,9 +201,37 @@ namespace DontTrustYourLuck.Domain.Match
                 }
             }
 
-            // 6. Next turn or round.
+            // 6. Same-tile bump: only a mover that is still in the match pushes the occupants back.
+            if (player.IsActive) ResolveBumps(player, events);
+
+            // 7. Next turn or round.
             EndTurn(events);
             return CommandResult.Ok(events);
+        }
+
+        /// <summary>
+        /// Players a die move to <paramref name="tile"/> would bump (none on tile 0, the lucky tile or with bumps off).
+        /// Used by bots and UI hints; never changes state.
+        /// </summary>
+        public int CountBumpVictims(int moverId, int tile)
+        {
+            if (_rules.BumpDistance <= 0 || tile <= 0 || tile == _state.LuckyNumber) return 0;
+            int count = 0;
+            foreach (var p in _state.PlayerList)
+                if (p.Id != moverId && p.IsActive && p.Position == tile) count++;
+            return count;
+        }
+
+        private void ResolveBumps(PlayerState mover, List<MatchEvent> events)
+        {
+            int tile = mover.Position;
+            if (CountBumpVictims(mover.Id, tile) == 0) return;
+            foreach (var p in _state.PlayerList) // ascending id order
+            {
+                if (p.Id == mover.Id || !p.IsActive || p.Position != tile) continue;
+                p.Position = Math.Max(0, tile - _rules.BumpDistance);
+                events.Add(new PlayerBumpedEvent(mover.Id, p.Id, tile, p.Position));
+            }
         }
 
         /// <summary>
@@ -276,8 +310,9 @@ namespace DontTrustYourLuck.Domain.Match
         public bool IsDangerous(int playerId, int tile)
         {
             var player = _state.GetPlayer(playerId);
-            return tile == _state.UnluckyNumber ||
-                (player.HasDebuff(CardEffectType.StickyLuck, _state.RoundNumber) && tile == player.StickyUnluckyNumber);
+            return _rules.IsInUnluckyZone(tile, _state.UnluckyNumber, _state.LuckyNumber) ||
+                (player.HasDebuff(CardEffectType.StickyLuck, _state.RoundNumber) &&
+                 _rules.IsInUnluckyZone(tile, player.StickyUnluckyNumber, _state.LuckyNumber));
         }
 
         public int DistanceToLucky(int position) => _rules.Circuit
@@ -322,7 +357,11 @@ namespace DontTrustYourLuck.Domain.Match
                         AddCard(player, _cards.Catalog.Definitions[_cards.Random.NextInt(0, _cards.Catalog.Count)], CardDrawSource.Granted, events);
             }
 
-            StartTurn(FirstActivePlayerId(), events);
+            _roundOrder.Clear();
+            int count = _state.PlayerList.Count;
+            int offset = _rules.RotateFirstPlayer ? (roundNumber - 1) % count : 0;
+            for (int i = 0; i < count; i++) _roundOrder.Add(_state.PlayerList[(offset + i) % count].Id);
+            StartTurn(NextActivePlayerIdAfter(-1), events);
         }
 
         private void StartTurn(int playerId, List<MatchEvent> events)
@@ -347,7 +386,7 @@ namespace DontTrustYourLuck.Domain.Match
             foreach (var player in _state.PlayerList)
             {
                 if (player.IsActive && player.HasDebuff(CardEffectType.Freeze, _state.RoundNumber) &&
-                    player.Position == _state.UnluckyNumber)
+                    _rules.IsInUnluckyZone(player.Position, _state.UnluckyNumber, _state.LuckyNumber))
                 {
                     if (player.HasShield)
                     {
@@ -411,11 +450,13 @@ namespace DontTrustYourLuck.Domain.Match
             return -1;
         }
 
+        /// <summary>Next active player in this round's order after <paramref name="playerId"/> (-1: from the start).</summary>
         private int NextActivePlayerIdAfter(int playerId)
         {
-            foreach (var p in _state.PlayerList) // ascending id order
+            for (int i = _roundOrder.IndexOf(playerId) + 1; i < _roundOrder.Count; i++)
             {
-                if (p.Id > playerId && p.IsActive) return p.Id;
+                var p = _state.GetPlayer(_roundOrder[i]);
+                if (p.IsActive) return p.Id;
             }
             return -1;
         }

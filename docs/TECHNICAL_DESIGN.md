@@ -97,7 +97,10 @@ Este documento especifica **como implementar** o protótipo de *Don't Trust Your
 | Casas | Índices `0..30` fixos, sendo `0` início e `1..30` numeradas; independe do número da sorte. Casas `> LuckyNumber` não são alcançáveis por movimento normal | **Decidido (M1)** |
 | Número da sorte | Sorteado em `15..30` no início | Proposto |
 | Número do azar | Sorteado em `1..LuckyNumber−1` no início de cada rodada (`NextInt(1, LuckyNumber)`); revelado antes de qualquer jogada | **Decidido (M1)** |
-| Rodada | Concluída quando todos os jogadores ativos tiveram oportunidade de agir; ordem fixa por `Player.Id`; eliminação no meio da rodada não ressorteia o azar | **Decidido (M1)** |
+| Rodada | Concluída quando todos os jogadores ativos tiveram oportunidade de agir; ordem por `Player.Id`; eliminação no meio da rodada não ressorteia o azar | **Decidido (M1)** |
+| Rotação do primeiro jogador | `MatchRulesConfig.RotateFirstPlayer`: a ordem da rodada `r` começa no assento `(r−1) mod N` (ids ascendentes) e pula eliminados. Ativa em `DefaultMatchConfig` | **Aprovado para playtest (10/11/2026)** |
+| Esbarrão | `MatchRulesConfig.BumpDistance` (padrão do domínio 0 = desligado; `DefaultMatchConfig` = 3). Resolvido em `ChooseDie` depois de sorte/azar, só se o jogador que se moveu continua ativo; ocupantes (ordem de id) recuam `max(0, casa − BumpDistance)` e geram `PlayerBumpedEvent` sem resolver casa. Casa 0 e `LuckyNumber` nunca esbarram; cartas não esbarram. `CountBumpVictims` é a consulta sem efeito usada pelo bot (cada vítima vale 1,5 casa) e pela prévia "BUMP!" dos dados | **Aprovado para playtest (10/11/2026)** |
+| Zona do azar | `MatchRulesConfig.UnluckyZoneRadius` (padrão do domínio 0; `DefaultMatchConfig` = 1). Perigosa toda casa a até `r` do `UnluckyNumber` (`IsInUnluckyZone`); casa 0 e `LuckyNumber` nunca; circuito dá a volta em `1..BoardLength`; linear limita a `1..LuckyNumber−1`. Vale também para o número preso de Sticky Luck e para a checagem de Freeze no fim da rodada | **Aprovado para playtest (10/11/2026)** |
 | Dois dados | Dois valores `1..6`; jogador escolhe **um**; escolha obrigatória mesmo se ambos levam ao azar | **Decidido (M1)** |
 | Exceder o alvo | **Rebote no número da sorte** (não no limite do tabuleiro) | **Decidido (M1)** |
 | Vitória | Terminar o movimento exatamente na casa da sorte | Proposto |
@@ -373,7 +376,7 @@ Requisitos:
 
 ### 9.2 Sorteio por rodada
 
-`UnluckyNumber` é escolhido no início da rodada em `1..LuckyNumber−1` (decidido para M1), portanto nunca coincide com `LuckyNumber` nem com a largada. A apresentação revela o número antes de aceitar movimentos. Eliminações no meio da rodada não disparam novo sorteio.
+`UnluckyNumber` é escolhido no início da rodada em `1..LuckyNumber−1` (decidido para M1), portanto nunca coincide com `LuckyNumber` nem com a largada. A apresentação revela o número antes de aceitar movimentos. Eliminações no meio da rodada não disparam novo sorteio. Com `UnluckyZoneRadius > 0`, o sorteio continua escolhendo só o centro; a zona é derivada dele (sem consumir aleatoriedade extra), destacada no tabuleiro e exibida no HUD como intervalo (ex.: `12-14`).
 
 ### 9.2.1 Fim por limite de rodadas (Decidido para M1)
 

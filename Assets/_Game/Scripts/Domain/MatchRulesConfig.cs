@@ -36,6 +36,18 @@ namespace DontTrustYourLuck.Domain
         public bool Circuit { get; }
         public bool PersistentShield { get; }
         public int CardDrawInterval { get; }
+        /// <summary>
+        /// Tiles on each side of the unlucky number that are also dangerous (0 = single tile, 1 = 3-tile zone).
+        /// Proposed 10/11/2026 after simulation; see GDD §3. Tile 0 and the lucky tile are never dangerous.
+        /// </summary>
+        public int UnluckyZoneRadius { get; }
+        /// <summary>When true the first player of each round rotates (round 1: lowest id, round 2: next id, ...).</summary>
+        public bool RotateFirstPlayer { get; }
+        /// <summary>
+        /// Same-tile bump (approved 10/11/2026 for playtest): ending a die move on an occupied tile pushes every
+        /// occupant back this many tiles (clamped at 0). 0 disables it. Tile 0 and the lucky tile never bump.
+        /// </summary>
+        public int BumpDistance { get; }
 
         /// <summary>Number of logical tiles including the start tile (BoardLength + 1).</summary>
         public int TileCount => BoardLength + 1;
@@ -54,7 +66,7 @@ namespace DontTrustYourLuck.Domain
             int startingHandSize = DefaultStartingHandSize,
             int maxHandSize = DefaultMaxHandSize,
             int maxRounds = DefaultMaxRounds, bool circuit = false, bool persistentShield = false,
-            int cardDrawInterval = 0)
+            int cardDrawInterval = 0, int unluckyZoneRadius = 0, bool rotateFirstPlayer = false, int bumpDistance = 0)
         {
             var errors = Validate(boardLength, minLuckyNumber, maxLuckyNumber, diceCount, diceSides,
                 minPlayers, maxPlayers, startingHandSize, maxHandSize, maxRounds);
@@ -77,6 +89,13 @@ namespace DontTrustYourLuck.Domain
             PersistentShield = persistentShield;
             if (cardDrawInterval < 0) throw new ArgumentOutOfRangeException(nameof(cardDrawInterval));
             CardDrawInterval = cardDrawInterval;
+            if (unluckyZoneRadius < 0 || 2 * unluckyZoneRadius + 1 >= minLuckyNumber)
+                throw new ArgumentOutOfRangeException(nameof(unluckyZoneRadius), unluckyZoneRadius,
+                    "Unlucky zone radius must be >= 0 and leave safe tiles before the lucky number.");
+            UnluckyZoneRadius = unluckyZoneRadius;
+            RotateFirstPlayer = rotateFirstPlayer;
+            if (bumpDistance < 0) throw new ArgumentOutOfRangeException(nameof(bumpDistance), bumpDistance, "Must be >= 0.");
+            BumpDistance = bumpDistance;
         }
 
         /// <summary>
@@ -133,6 +152,33 @@ namespace DontTrustYourLuck.Domain
         }
 
         public bool IsValidTileIndex(int index) => index >= 0 && index <= BoardLength;
+
+        /// <summary>
+        /// True when <paramref name="tile"/> is within <see cref="UnluckyZoneRadius"/> of <paramref name="center"/>.
+        /// Circuit: distance wraps around 1..BoardLength. Linear: only tiles 1..lucky-1 count.
+        /// Tile 0, the lucky tile and a non-positive center are never dangerous.
+        /// </summary>
+        public bool IsInUnluckyZone(int tile, int center, int luckyNumber)
+        {
+            if (center <= 0 || tile <= 0 || tile > BoardLength || tile == luckyNumber) return false;
+            if (!Circuit && tile > luckyNumber) return false;
+            int diff = Math.Abs(tile - center);
+            if (Circuit) diff = Math.Min(diff, BoardLength - diff);
+            return diff <= UnluckyZoneRadius;
+        }
+
+        /// <summary>Fills <paramref name="into"/> with the zone tiles in path order (center - radius .. center + radius).</summary>
+        public void GetUnluckyZone(int center, int luckyNumber, List<int> into)
+        {
+            if (into == null) throw new ArgumentNullException(nameof(into));
+            into.Clear();
+            for (int d = -UnluckyZoneRadius; d <= UnluckyZoneRadius; d++)
+            {
+                int tile = center + d;
+                if (Circuit) tile = ((tile - 1) % BoardLength + BoardLength) % BoardLength + 1;
+                if (IsInUnluckyZone(tile, center, luckyNumber)) into.Add(tile);
+            }
+        }
 
         public bool IsInLuckyRange(int luckyNumber) =>
             luckyNumber >= MinLuckyNumber && luckyNumber <= MaxLuckyNumber;

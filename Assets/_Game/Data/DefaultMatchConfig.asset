@@ -16,6 +16,9 @@ MonoBehaviour:
   circuit: 1
   persistentShield: 1
   cardDrawInterval: 2
+  unluckyZoneRadius: 1
+  rotateFirstPlayer: 1
+  bumpDistance: 3
   minLuckyNumber: 15
   maxLuckyNumber: 30
   diceCount: 2

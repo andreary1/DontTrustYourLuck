@@ -7,17 +7,16 @@ using UnityEngine.UI;
 namespace DontTrustYourLuck.EditorTools
 {
     /// <summary>
-    /// The game's UI font (Pixelify Sans, SIL OFL 1.1 - license next to the files). Builders call
+    /// The game's UI font (Jersey 25, SIL OFL 1.1 - license next to the file). Builders call
     /// <see cref="Ui"/> instead of the built-in LegacyRuntime font; <see cref="ApplyToProject"/> swaps the font on
     /// every uGUI Text already saved in the HUD prefab and the GameBoard scene.
     /// </summary>
     public static class GameFonts
     {
-        public const string Dir = "Assets/_Game/Art/Fonts/PixelifySans";
-        public const string RegularPath = Dir + "/PixelifySans-Regular.ttf";
-        public const string BoldPath = Dir + "/PixelifySans-Bold.ttf";
+        public const string Dir = "Assets/_Game/Art/Fonts/Jersey25";
+        public const string RegularPath = Dir + "/Jersey25-Regular.ttf";
 
-        /// <summary>Pixelify Sans Regular, or the built-in font if missing. Bold text uses <see cref="UiBold"/>.</summary>
+        /// <summary>Jersey 25 Regular, or the built-in font if missing. Bold text uses <see cref="UiBold"/>.</summary>
         public static Font Ui()
         {
             EnsureImported();
@@ -29,13 +28,7 @@ namespace DontTrustYourLuck.EditorTools
 
         private static void EnsureImported()
         {
-            EnsureImported(RegularPath);
-            EnsureImported(BoldPath);
-        }
-
-        private static void EnsureImported(string path)
-        {
-            var importer = AssetImporter.GetAtPath(path) as TrueTypeFontImporter;
+            var importer = AssetImporter.GetAtPath(RegularPath) as TrueTypeFontImporter;
             if (importer == null) return;
             bool dirty = false;
             if (importer.fontTextureCase != FontTextureCase.Dynamic) { importer.fontTextureCase = FontTextureCase.Dynamic; dirty = true; }
@@ -45,7 +38,7 @@ namespace DontTrustYourLuck.EditorTools
             if (dirty) importer.SaveAndReimport();
         }
 
-        [MenuItem("Tools/Don't Trust Your Luck/Apply UI Font (Pixelify Sans)")]
+        [MenuItem("Tools/Don't Trust Your Luck/Apply UI Font (Jersey 25)")]
         public static void ApplyToProject()
         {
             var font = Ui();
@@ -65,18 +58,17 @@ namespace DontTrustYourLuck.EditorTools
                 EditorSceneManager.MarkSceneDirty(scene);
                 EditorSceneManager.SaveScene(scene);
             }
-            Debug.Log($"[GameFonts] Pixelify Sans applied: {prefabCount} texts in the HUD prefab, {sceneCount} in the scene.");
-        }
-
-        public static Font UiBold()
-        {
-            var bold = AssetDatabase.LoadAssetAtPath<Font>(BoldPath);
-            return bold != null ? bold : Ui();
+            Debug.Log($"[GameFonts] Jersey 25 applied: {prefabCount} texts in the HUD prefab, {sceneCount} in the scene.");
         }
 
         /// <summary>
-        /// Sets the Pixelify face on a Text: bold styles use the real Bold file (a synthesized bold smears
-        /// pixel glyphs, e.g. "5" reads as "S"). Returns true when something changed.
+        /// Jersey 25 ships a single weight, so bold text uses the Regular face (no synthesized bold).
+        /// </summary>
+        public static Font UiBold() => Ui();
+
+        /// <summary>
+        /// Sets the UI face on a Text: bold styles use <see cref="UiBold"/> with a Normal style (a synthesized bold
+        /// smears pixel glyphs, e.g. "5" reads as "S"). Returns true when something changed.
         /// </summary>
         public static bool Assign(Text t, Font regular, Font bold)
         {

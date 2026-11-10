@@ -77,7 +77,7 @@ namespace DontTrustYourLuck.Tests.PlayMode
 
             // Info panel and active highlight.
             Assert.AreEqual(state.LuckyNumber.ToString(), hud.MatchInfo.LuckyText);
-            Assert.AreEqual(state.UnluckyNumber.ToString(), hud.MatchInfo.UnluckyText);
+            Assert.AreEqual(_director.UnluckyDisplayFor(state.UnluckyNumber), hud.MatchInfo.UnluckyText); // number or zone ("10-12")
             Assert.AreEqual("1 / 15", hud.MatchInfo.RoundText);
             Assert.AreEqual("P1", hud.MatchInfo.TurnText);
             Assert.IsTrue(hud.PlayerStatus.Cards[0].IsHighlighted);
@@ -171,7 +171,7 @@ namespace DontTrustYourLuck.Tests.PlayMode
                 {
                     // Round/unlucky display follows the state between commands.
                     Assert.AreEqual($"{s.RoundNumber} / 15", _director.Hud.MatchInfo.RoundText);
-                    Assert.AreEqual(s.UnluckyNumber.ToString(), _director.Hud.MatchInfo.UnluckyText);
+                    Assert.AreEqual(_director.UnluckyDisplayFor(s.UnluckyNumber), _director.Hud.MatchInfo.UnluckyText);
                     startedRound = s.RoundNumber;
                 }
                 return s.IsFinished && !_director.IsBusy;
