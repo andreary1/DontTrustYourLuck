@@ -14,7 +14,11 @@ namespace DontTrustYourLuck.Domain.Cards
         /// <summary>Move back <see cref="CardDefinition.Amount"/> tiles, never below tile 0 (Retreat).</summary>
         MoveBack,
         /// <summary>Block one unlucky-tile elimination during the next move (Shield).</summary>
-        Shield
+        Shield,
+        Freeze,
+        HeavyFeet,
+        CrackedDie,
+        StickyLuck
     }
 
     /// <summary>When a card may be played inside the player's own turn (TDD §10.2).</summary>
@@ -41,6 +45,10 @@ namespace DontTrustYourLuck.Domain.Cards
         public const string Swap = "swap";
         public const string Retreat = "retreat_3";
         public const string Shield = "shield";
+        public const string Freeze = "freeze";
+        public const string HeavyFeet = "heavy_feet";
+        public const string CrackedDie = "cracked_die";
+        public const string StickyLuck = "sticky_luck";
     }
 
     /// <summary>
@@ -113,6 +121,16 @@ namespace DontTrustYourLuck.Domain.Cards
             new CardDefinition(CardIds.Retreat, CardEffectType.MoveBack, CardTiming.BeforeRoll, CardTargeting.None, 3),
             new CardDefinition(CardIds.Shield, CardEffectType.Shield, CardTiming.BeforeRoll, CardTargeting.None),
         });
+
+        public static CardCatalog CreateExpanded()
+        {
+            var cards = new List<CardDefinition>(CreateDefault().Definitions);
+            cards.Add(new CardDefinition(CardIds.Freeze, CardEffectType.Freeze, CardTiming.BeforeRoll, CardTargeting.OtherActivePlayer));
+            cards.Add(new CardDefinition(CardIds.HeavyFeet, CardEffectType.HeavyFeet, CardTiming.BeforeRoll, CardTargeting.OtherActivePlayer, 2));
+            cards.Add(new CardDefinition(CardIds.CrackedDie, CardEffectType.CrackedDie, CardTiming.BeforeRoll, CardTargeting.OtherActivePlayer));
+            cards.Add(new CardDefinition(CardIds.StickyLuck, CardEffectType.StickyLuck, CardTiming.BeforeRoll, CardTargeting.OtherActivePlayer));
+            return new CardCatalog(cards);
+        }
     }
 
     /// <summary>

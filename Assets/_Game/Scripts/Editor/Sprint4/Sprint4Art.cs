@@ -58,10 +58,10 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
             EnsureFolder(CharactersDir);
             var list = new List<CharacterArt>
             {
-                Character("onca", "Onça", Gold, DrawOnca, new RectInt(23, 60, 52, 52)),
-                Character("capivara", "Capivara", Blue, DrawCapivara, new RectInt(46, 50, 48, 48)),
-                Character("macaco", "Macaco", Green, DrawMacaco, new RectInt(21, 60, 52, 52)),
-                Character("tucano", "Tucano", Pink, DrawTucano, new RectInt(22, 58, 70, 70)),
+                Character("onca", "Jaguar", Gold, DrawOnca, new RectInt(23, 60, 52, 52)),
+                Character("capivara", "Capybara", Blue, DrawCapivara, new RectInt(46, 50, 48, 48)),
+                Character("macaco", "Monkey", Green, DrawMacaco, new RectInt(21, 60, 52, 52)),
+                Character("tucano", "Toucan", Pink, DrawTucano, new RectInt(22, 58, 70, 70)),
             };
             return list;
         }

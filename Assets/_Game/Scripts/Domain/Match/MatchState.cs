@@ -18,6 +18,10 @@ namespace DontTrustYourLuck.Domain.Match
 
         /// <summary>Shield protection for the current move only; cleared when the move resolves.</summary>
         public bool HasShield { get; internal set; }
+        public CardEffectType? Debuff { get; internal set; }
+        public int DebuffRound { get; internal set; }
+        public int StickyUnluckyNumber { get; internal set; }
+        public bool HasDebuff(CardEffectType effect, int round) => Debuff == effect && DebuffRound == round;
 
         internal PlayerState(int id, int handCapacity = 0)
         {

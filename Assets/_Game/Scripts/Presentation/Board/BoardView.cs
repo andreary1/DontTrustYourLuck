@@ -41,6 +41,37 @@ namespace DontTrustYourLuck.Presentation.Board
 
         private int _luckyIndex = -1;
         private int _unluckyIndex = -1;
+        private bool _circuit;
+        public bool IsCircuit => _circuit;
+
+        public void SetCircuit(bool value)
+        {
+            if (_circuit == value) return;
+            _circuit = value;
+            EnsureBuilt(tileCount);
+            if (!value) return;
+            // Reuse the authored tiles/materials. The start is a spur; 1..30 form the closed perimeter.
+            for (int i = 0; i < tiles.Count; i++)
+                tiles[i].transform.localPosition = CircuitPosition(i, tiles.Count - 1);
+            foreach (var connector in connectors) if (connector != null) DestroySafe(connector);
+            connectors.Clear();
+            for (int i = 1; i < tiles.Count; i++)
+                connectors.Add(CreateConnector(tiles[i - 1].transform.localPosition, tiles[i].transform.localPosition, i));
+            connectors.Add(CreateConnector(tiles[tiles.Count - 1].transform.localPosition, tiles[1].transform.localPosition, tiles.Count));
+            ApplyHighlights();
+        }
+
+        public static Vector3 CircuitPosition(int index, int length)
+        {
+            // Equal arc spacing on a rectangular plaza; default 30 = 10 + 5 + 10 + 5 edges.
+            float distance = (index == 0 ? 0 : index - 1) * 30f / length;
+            Vector3 p;
+            if (distance < 10) p = new Vector3(-5.5f + distance * 1.1f, 0, -3f);
+            else if (distance < 15) p = new Vector3(5.5f, 0, -3f + (distance - 10) * 1.2f);
+            else if (distance < 25) p = new Vector3(5.5f - (distance - 15) * 1.1f, 0, 3f);
+            else p = new Vector3(-5.5f, 0, 3f - (distance - 25) * 1.2f);
+            return index == 0 ? p + Vector3.back * 1.2f : p;
+        }
 
         public IReadOnlyList<BoardTileView> Tiles => tiles;
         public int TileCount => tiles.Count;
@@ -169,8 +200,9 @@ namespace DontTrustYourLuck.Presentation.Board
             var anchor = GetTileAnchor(tileIndex).position;
             if (occupantCount <= 1) return anchor;
 
-            float angle = Mathf.PI * 0.25f + slot * (2f * Mathf.PI / occupantCount);
-            var offset = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * pieceSlotRadius;
+            // A horizontal fan avoids one cutout hiding behind another at the lower camera angle.
+            float spacing = Mathf.Min(pieceSlotRadius * 1.75f, 0.8f / Mathf.Max(1, occupantCount - 1));
+            var offset = new Vector3((slot - (occupantCount - 1) * 0.5f) * spacing, 0f, 0f);
             return anchor + transform.rotation * offset;
         }
 
@@ -206,6 +238,7 @@ namespace DontTrustYourLuck.Presentation.Board
                 occupants.Sort((a, b) => a.PlayerId.CompareTo(b.PlayerId));
                 for (int slot = 0; slot < occupants.Count; slot++)
                 {
+                    occupants[slot].transform.localScale = Vector3.one * OccupantScale(occupants.Count);
                     occupants[slot].transform.position = GetPieceWorldPosition(pair.Key, slot, occupants.Count);
                 }
             }
@@ -220,6 +253,8 @@ namespace DontTrustYourLuck.Presentation.Board
             }
 #endif
         }
+
+        public static float OccupantScale(int count) => count <= 1 ? 0.85f : count == 2 ? 0.52f : count == 3 ? 0.40f : 0.30f;
 
         /// <summary>Displays lucky/unlucky tiles. Pass -1 to clear one of them.</summary>
         public void SetHighlights(int luckyIndex, int unluckyIndex)
@@ -254,7 +289,7 @@ namespace DontTrustYourLuck.Presentation.Board
                 if (tiles[i] == null) continue;
                 if (i == _luckyIndex) tiles[i].SetMaterial(materials.lucky, TileHighlight.Lucky);
                 else if (i == _unluckyIndex) tiles[i].SetMaterial(materials.unlucky, TileHighlight.Unlucky);
-                else if (_luckyIndex > 0 && i > _luckyIndex && materials.beyondLucky != null)
+                else if (!_circuit && _luckyIndex > 0 && i > _luckyIndex && materials.beyondLucky != null)
                     tiles[i].SetMaterial(materials.beyondLucky, TileHighlight.None); // unreachable: visual only
                 else tiles[i].SetMaterial(BaseMaterial(i), TileHighlight.None);
             }
@@ -267,7 +302,11 @@ namespace DontTrustYourLuck.Presentation.Board
             if (marker == null) return;
             bool show = index >= 0 && index < tiles.Count && tiles[index] != null;
             if (marker.gameObject.activeSelf != show) marker.gameObject.SetActive(show);
-            if (show) marker.position = tiles[index].transform.position + Vector3.up * markerHeight;
+            if (show)
+            {
+                marker.position = tiles[index].transform.position + new Vector3(0.36f, Mathf.Min(markerHeight, 0.28f), -0.32f);
+                marker.localScale = Vector3.one * 0.34f;
+            }
         }
 
         private Material BaseMaterial(int index)

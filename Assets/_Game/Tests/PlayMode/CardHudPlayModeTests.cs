@@ -127,6 +127,26 @@ namespace DontTrustYourLuck.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator Hand_HoverShowsRulesTooltip_AndPlayerCardsHideTheTileLine()
+        {
+            Assert.IsTrue(_director.BeginMatch(Setup(false, false), seed: 11));
+            yield return WaitIdle();
+
+            Assert.AreEqual(-1, Hand.TooltipSlot, "no tooltip until a card is hovered or selected");
+            Hand.Slots[0].OnPointerEnter(null);
+            Assert.AreEqual(0, Hand.TooltipSlot);
+            Assert.AreEqual(Hand.Slots[0].Description, Hand.TooltipText);
+            Assert.IsFalse(string.IsNullOrEmpty(Hand.TooltipText), "rules text comes from the card asset");
+            Hand.Slots[0].OnPointerExit(null);
+            Assert.AreEqual(-1, Hand.TooltipSlot);
+
+            var card = _director.Hud.PlayerStatus.Cards[0];
+            Assert.AreEqual("Tile 0", card.PositionText, "value kept for tests/accessibility");
+            var position = card.transform.Find("Position")?.GetComponent<UnityEngine.UI.Text>();
+            if (position != null) Assert.IsFalse(position.enabled, "tile line hidden: the board shows positions");
+        }
+
+        [UnityTest]
         public IEnumerator LuckyRoll_OnlyAfterRolling_ReplacesDice_AndBlocksSecondCard()
         {
             int seed = FindSeed(2, s => Has(s, 1, CardIds.LuckyRoll) && s.GetPlayer(1).Hand.Cards.Any(c => c.CardId != CardIds.LuckyRoll));
@@ -239,8 +259,9 @@ namespace DontTrustYourLuck.Tests.PlayMode
             yield return WaitIdle();
             _director.Hud.DicePanel.ChooseButtons[0].onClick.Invoke();
             yield return WaitIdle();
-            Assert.IsFalse(state.GetPlayer(2).HasShield, "shield expires after the move");
-            Assert.AreNotEqual(_director.Hud.Text.statusShielded, _director.Hud.PlayerStatus.Cards[1].StatusText);
+            bool danger = _director.Session.Engine.IsDangerous(2, state.GetPlayer(2).Position);
+            Assert.AreEqual(!danger, state.GetPlayer(2).HasShield, "shield persists until blocking danger");
+            Assert.AreEqual(!danger, _director.Hud.PlayerStatus.Cards[1].StatusText == _director.Hud.Text.statusShielded);
             Assert.AreNotEqual(PlayerStatus.Eliminated, state.GetPlayer(2).Status, "a shielded move never eliminates");
         }
 

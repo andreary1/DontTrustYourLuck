@@ -32,7 +32,8 @@ namespace DontTrustYourLuck.Domain.Match
         /// <summary>Every other player was eliminated.</summary>
         LastSurvivor,
         /// <summary>MaxRounds completed; active players with the highest position win (ties share).</summary>
-        RoundLimit
+        RoundLimit,
+        NoSurvivors
     }
 
     public enum EliminationReason

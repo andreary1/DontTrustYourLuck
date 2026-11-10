@@ -203,7 +203,7 @@ namespace DontTrustYourLuck.EditorTools.Menu
 
         public static void BuildHud(Sprint4Art.UiArt ui, MenuArt art)
         {
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = DontTrustYourLuck.EditorTools.GameFonts.Ui();
             var root = PrefabUtility.LoadPrefabContents(Sprint4Hud.HudPrefabPath);
             try
             {

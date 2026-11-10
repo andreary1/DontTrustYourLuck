@@ -33,6 +33,9 @@ namespace DontTrustYourLuck.Domain
         public int MaxHandSize { get; }
         /// <summary>Round limit (Decided for M1: 15). Not used by Sprint 1 services yet.</summary>
         public int MaxRounds { get; }
+        public bool Circuit { get; }
+        public bool PersistentShield { get; }
+        public int CardDrawInterval { get; }
 
         /// <summary>Number of logical tiles including the start tile (BoardLength + 1).</summary>
         public int TileCount => BoardLength + 1;
@@ -50,7 +53,8 @@ namespace DontTrustYourLuck.Domain
             int maxPlayers = DefaultMaxPlayers,
             int startingHandSize = DefaultStartingHandSize,
             int maxHandSize = DefaultMaxHandSize,
-            int maxRounds = DefaultMaxRounds)
+            int maxRounds = DefaultMaxRounds, bool circuit = false, bool persistentShield = false,
+            int cardDrawInterval = 0)
         {
             var errors = Validate(boardLength, minLuckyNumber, maxLuckyNumber, diceCount, diceSides,
                 minPlayers, maxPlayers, startingHandSize, maxHandSize, maxRounds);
@@ -69,6 +73,10 @@ namespace DontTrustYourLuck.Domain
             StartingHandSize = startingHandSize;
             MaxHandSize = maxHandSize;
             MaxRounds = maxRounds;
+            Circuit = circuit;
+            PersistentShield = persistentShield;
+            if (cardDrawInterval < 0) throw new ArgumentOutOfRangeException(nameof(cardDrawInterval));
+            CardDrawInterval = cardDrawInterval;
         }
 
         /// <summary>

@@ -60,6 +60,7 @@ namespace DontTrustYourLuck.Domain.Match
         private readonly MatchRulesConfig _rules;
         private readonly LuckNumberService _luck;
         private readonly DiceService _dice;
+        private readonly DiceService _singleDie;
         private readonly MovementService _movement;
         private readonly MatchState _state = new MatchState();
         private readonly CardSetup _cards;
@@ -79,15 +80,20 @@ namespace DontTrustYourLuck.Domain.Match
             if (random == null) throw new ArgumentNullException(nameof(random));
             _luck = new LuckNumberService(random, rules);
             _dice = new DiceService(random, rules);
+            _singleDie = new DiceService(random, 1, rules.DiceSides);
             _movement = new MovementService(rules);
             _cards = cards;
 
             // Explicit registration per effect type (TDD §10.1). New effects are added here.
             _cardResolver = new CardEffectResolver();
-            _cardResolver.Register(new RerollEffect(_dice.Roll));
+            _cardResolver.Register(new RerollEffect(RollForCurrentPlayer));
             _cardResolver.Register(new SwapPositionsEffect());
             _cardResolver.Register(new MoveBackEffect());
             _cardResolver.Register(new ShieldEffect());
+            _cardResolver.Register(new DebuffEffect(CardEffectType.Freeze));
+            _cardResolver.Register(new DebuffEffect(CardEffectType.HeavyFeet));
+            _cardResolver.Register(new DebuffEffect(CardEffectType.CrackedDie));
+            _cardResolver.Register(new DebuffEffect(CardEffectType.StickyLuck));
         }
 
         /// <summary>Starts the match. Turn order is ascending player id (decision D13).</summary>
@@ -124,7 +130,13 @@ namespace DontTrustYourLuck.Domain.Match
             var error = ValidateTurn(playerId, MatchPhase.AwaitingRoll);
             if (error != CommandError.None) return CommandResult.Fail(error);
 
-            var roll = _dice.Roll();
+            if (_state.GetPlayer(playerId).HasDebuff(CardEffectType.Freeze, _state.RoundNumber))
+            {
+                var frozenEvents = new List<MatchEvent> { new FrozenTurnEvent(playerId) };
+                EndTurn(frozenEvents);
+                return CommandResult.Ok(frozenEvents);
+            }
+            var roll = RollForCurrentPlayer();
             _state.CurrentRoll = roll;
             _state.Phase = MatchPhase.AwaitingDiceChoice;
             return CommandResult.Ok(new List<MatchEvent> { new DiceRolledEvent(playerId, roll) });
@@ -152,7 +164,7 @@ namespace DontTrustYourLuck.Domain.Match
 
             // The shield only covers this move: it is cleared whatever the outcome.
             bool shielded = player.HasShield;
-            player.HasShield = false;
+            if (!_rules.PersistentShield) player.HasShield = false;
 
             // 2. Lucky number: immediate win.
             if (player.Position == _state.LuckyNumber)
@@ -162,13 +174,14 @@ namespace DontTrustYourLuck.Domain.Match
                 return CommandResult.Ok(events);
             }
 
-            bool onUnlucky = player.Position == _state.UnluckyNumber;
-            if (shielded)
+            bool onUnlucky = IsDangerous(playerId, player.Position);
+            if (shielded && (onUnlucky || !_rules.PersistentShield))
             {
+                player.HasShield = false;
                 // 4. Shield resolves before an elimination is confirmed; the player stays on the tile.
                 events.Add(new ShieldConsumedEvent(playerId, onUnlucky, player.Position));
             }
-            else if (onUnlucky)
+            else if (onUnlucky && !shielded)
             {
                 // 3. Unlucky number: elimination (only on the final tile; passing through is safe).
                 player.Status = PlayerStatus.Eliminated;
@@ -260,6 +273,27 @@ namespace DontTrustYourLuck.Domain.Match
             return _movement.Move(player.Position, steps, _state.LuckyNumber);
         }
 
+        public bool IsDangerous(int playerId, int tile)
+        {
+            var player = _state.GetPlayer(playerId);
+            return tile == _state.UnluckyNumber ||
+                (player.HasDebuff(CardEffectType.StickyLuck, _state.RoundNumber) && tile == player.StickyUnluckyNumber);
+        }
+
+        public int DistanceToLucky(int position) => _rules.Circuit
+            ? (_state.LuckyNumber - position + _rules.BoardLength) % _rules.BoardLength
+            : _state.LuckyNumber - position;
+
+        private DiceRoll RollForCurrentPlayer()
+        {
+            var player = _state.GetPlayer(_state.CurrentPlayerId);
+            var roll = player.HasDebuff(CardEffectType.CrackedDie, _state.RoundNumber) ? _singleDie.Roll() : _dice.Roll();
+            if (!player.HasDebuff(CardEffectType.HeavyFeet, _state.RoundNumber)) return roll;
+            var values = new int[roll.Count];
+            for (int i = 0; i < values.Length; i++) values[i] = Math.Max(1, roll[i] - 2);
+            return new DiceRoll(values);
+        }
+
         private CommandError ValidateTurn(int playerId, MatchPhase expected)
         {
             if (_state.Phase == MatchPhase.Finished) return CommandError.MatchFinished;
@@ -280,6 +314,14 @@ namespace DontTrustYourLuck.Domain.Match
             _state.UnluckyNumber = _luck.DrawUnluckyNumber(_state.LuckyNumber);
             events.Add(new UnluckyNumberDrawnEvent(roundNumber, _state.UnluckyNumber));
 
+            if (CardsEnabled && _rules.CardDrawInterval > 0 && roundNumber > 1 &&
+                (roundNumber - 1) % _rules.CardDrawInterval == 0)
+            {
+                foreach (var player in _state.PlayerList)
+                    if (player.IsActive && !player.Hand.IsFull)
+                        AddCard(player, _cards.Catalog.Definitions[_cards.Random.NextInt(0, _cards.Catalog.Count)], CardDrawSource.Granted, events);
+            }
+
             StartTurn(FirstActivePlayerId(), events);
         }
 
@@ -298,6 +340,38 @@ namespace DontTrustYourLuck.Domain.Match
             if (next >= 0)
             {
                 StartTurn(next, events);
+                return;
+            }
+
+            // Frozen players get the whole round to escape by card before the standing-hazard check.
+            foreach (var player in _state.PlayerList)
+            {
+                if (player.IsActive && player.HasDebuff(CardEffectType.Freeze, _state.RoundNumber) &&
+                    player.Position == _state.UnluckyNumber)
+                {
+                    if (player.HasShield)
+                    {
+                        player.HasShield = false;
+                        events.Add(new ShieldConsumedEvent(player.Id, true, player.Position));
+                    }
+                    else
+                    {
+                        player.Status = PlayerStatus.Eliminated;
+                        events.Add(new PlayerEliminatedEvent(player.Id, player.Position, EliminationReason.UnluckyTile));
+                    }
+                }
+                if (player.Debuff.HasValue && player.DebuffRound <= _state.RoundNumber)
+                {
+                    player.Debuff = null;
+                    player.StickyUnluckyNumber = 0;
+                    events.Add(new DebuffChangedEvent(player.Id, null, 0, 0));
+                }
+            }
+            if (_state.ActivePlayerCount <= 1)
+            {
+                // Simultaneous frozen eliminations can leave no survivors: this is a draw.
+                Finish(_state.ActivePlayerCount == 1 ? MatchEndReason.LastSurvivor : MatchEndReason.NoSurvivors,
+                    _state.ActivePlayerCount == 1 ? new List<int> { FirstActivePlayerId() } : new List<int>(), events);
                 return;
             }
 
@@ -348,16 +422,16 @@ namespace DontTrustYourLuck.Domain.Match
 
         private List<int> HighestActivePlayers()
         {
-            int best = -1;
+            int best = int.MaxValue;
             foreach (var p in _state.PlayerList)
             {
-                if (p.IsActive && p.Position > best) best = p.Position;
+                if (p.IsActive) best = Math.Min(best, DistanceToLucky(p.Position));
             }
 
             var winners = new List<int>();
             foreach (var p in _state.PlayerList)
             {
-                if (p.IsActive && p.Position == best) winners.Add(p.Id);
+                if (p.IsActive && DistanceToLucky(p.Position) == best) winners.Add(p.Id);
             }
             return winners;
         }

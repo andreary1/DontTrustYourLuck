@@ -15,6 +15,10 @@ namespace DontTrustYourLuck.Presentation.Config
     {
         [Header("Board")]
         [Min(2)] [SerializeField] private int boardLength = MatchRulesConfig.DefaultBoardLength;
+        [SerializeField] private bool circuit;
+        [SerializeField] private bool persistentShield;
+        [Min(0)] [SerializeField] private int cardDrawInterval;
+        public bool Circuit => circuit;
 
         [Header("Lucky number")]
         [SerializeField] private int minLuckyNumber = MatchRulesConfig.DefaultMinLuckyNumber;
@@ -56,7 +60,7 @@ namespace DontTrustYourLuck.Presentation.Config
         /// <summary>Creates a validated, immutable rules object. Throws ArgumentException if invalid.</summary>
         public MatchRulesConfig ToRulesConfig() => new MatchRulesConfig(
             boardLength, minLuckyNumber, maxLuckyNumber, diceCount, diceSides,
-            minPlayers, maxPlayers, startingHandSize, maxHandSize, maxRounds);
+            minPlayers, maxPlayers, startingHandSize, maxHandSize, maxRounds, circuit, persistentShield, cardDrawInterval);
 
         private void OnValidate()
         {
