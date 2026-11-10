@@ -154,7 +154,15 @@ namespace DontTrustYourLuck.Presentation.UI
             if (audioSettings != null) audioSettings.ApplyLabels(text);
             if (menuAudioSettings != null) menuAudioSettings.ApplyLabels(text);
             if (mainMenu != null) mainMenu.ApplyLabels();
-            if (titleText != null) titleText.text = text.gameTitle;
+            if (titleText != null)
+            {
+                titleText.text = text.gameTitle;
+                // Shrinks to one line inside the plaque instead of wrapping over the city subtitle.
+                titleText.horizontalOverflow = HorizontalWrapMode.Wrap;
+                titleText.verticalOverflow = VerticalWrapMode.Truncate;
+                titleText.resizeTextForBestFit = true;
+                titleText.resizeTextMinSize = 12;
+            }
             if (subtitleText != null) subtitleText.text = text.gameSubtitle;
         }
 

@@ -37,10 +37,10 @@ namespace DontTrustYourLuck.Presentation.Match
         [Header("Participants (count must respect MatchRulesConfig)")]
         [SerializeField] private List<ParticipantConfig> participants = new List<ParticipantConfig>
         {
-            new ParticipantConfig("Onça", GamePalette.SolarYellow, false),
-            new ParticipantConfig("Capivara", GamePalette.ColonialBlue, true),
-            new ParticipantConfig("Macaco", GamePalette.LeafGreen, true),
-            new ParticipantConfig("Tucano", GamePalette.HibiscusPink, true),
+            new ParticipantConfig("Jaguar", GamePalette.SolarYellow, false),
+            new ParticipantConfig("Capybara", GamePalette.ColonialBlue, true),
+            new ParticipantConfig("Monkey", GamePalette.LeafGreen, true),
+            new ParticipantConfig("Toucan", GamePalette.HibiscusPink, true),
         };
 
         [Header("Randomness")]
@@ -169,6 +169,13 @@ namespace DontTrustYourLuck.Presentation.Match
 
         private void Awake()
         {
+            if (board != null && config != null) board.SetCircuit(config.Circuit);
+            if (cameraRig != null) cameraRig.Configure(board, 38f);
+            if (hud != null && hud.MainMenu != null)
+            {
+                hud.MainMenu.ConfigureSetup(participants, seats => SetParticipants(seats));
+                if (config != null && config.Circuit) hud.MainMenu.UseCircuitInstructions();
+            }
             if (hud != null)
             {
                 hud.RollRequested += OnRollRequested;
@@ -387,7 +394,7 @@ namespace DontTrustYourLuck.Presentation.Match
         private void OnPlayAgainRequested() => Restart();
 
         /// <summary>Main menu "Play": first match of the session, or a fresh one after returning to the menu.</summary>
-        private void OnStartGameRequested() => Restart();
+        private void OnStartGameRequested() => BeginMatch();
 
         // ---------------- Input (cards) ----------------
         // Selection is presentation state only; legality always comes from the rules layer (ValidateCardPlay),
@@ -529,10 +536,31 @@ namespace DontTrustYourLuck.Presentation.Match
 
                 case TurnChangedEvent turn:
                     _currentId = turn.PlayerId;
+                    if (cameraRig != null && _pieceById.TryGetValue(turn.PlayerId, out var focusPiece)) cameraRig.FocusOn(focusPiece.transform);
                     _lastRoll.Clear();
                     _selectedDie = -1;
                     ClearCardSelection(); // pending card/target selection never crosses turns
                     Log(string.Format(text.turnChanged, NameOf(turn.PlayerId)));
+                    break;
+
+                case DebuffChangedEvent debuff:
+                    for (int i = 0; i < _players.Count; i++)
+                    {
+                        if (_players[i].Id != debuff.PlayerId) continue;
+                        var p = _players[i];
+                        p.Debuff = debuff.Effect;
+                        p.DebuffRound = debuff.ActiveRound;
+                        p.StickyNumber = debuff.StickyNumber;
+                        _players[i] = p;
+                    }
+                    Log(debuff.Effect.HasValue
+                        ? $"{NameOf(debuff.PlayerId)}: {DebuffLabel(debuff.Effect.Value)} in round {debuff.ActiveRound}."
+                        : $"The effect on {NameOf(debuff.PlayerId)} wore off.");
+                    break;
+
+                case FrozenTurnEvent frozen:
+                    Log($"{NameOf(frozen.PlayerId)} is frozen. Danger is resolved at the end of the round.");
+                    yield return Pause(eventPause * 2f);
                     break;
 
                 case DiceRolledEvent rolled:
@@ -634,6 +662,7 @@ namespace DontTrustYourLuck.Presentation.Match
                     break;
 
                 case MatchFinishedEvent finished:
+                    if (cameraRig != null) cameraRig.FocusOn(null);
                     ClearCardSelection();
                     _currentId = -1;
                     _lastRoll.Clear();
@@ -652,6 +681,7 @@ namespace DontTrustYourLuck.Presentation.Match
             _selectedDie = -1;
             _lastRoll.Clear();
             _hands.Clear();
+            if (cameraRig != null) { cameraRig.FocusOn(null); cameraRig.Frame(); }
             ClearCardSelection();
             hud.ResultScreen.Hide();
             hud.Messages.Clear();
@@ -753,7 +783,7 @@ namespace DontTrustYourLuck.Presentation.Match
                 colors.Add(ColorOf(id));
             }
 
-            string title = names.Count == 1
+            string title = names.Count == 0 ? "Draw - no survivors" : names.Count == 1
                 ? string.Format(text.resultSingleWinner, names[0])
                 : string.Format(text.resultSharedWinners, string.Join(text.winnerJoin, names));
 
@@ -763,6 +793,7 @@ namespace DontTrustYourLuck.Presentation.Match
                 case MatchEndReason.ExactLucky: reason = string.Format(text.reasonExactLucky, _lucky); break;
                 case MatchEndReason.LastSurvivor: reason = text.reasonLastSurvivor; break;
                 case MatchEndReason.RoundLimit: reason = string.Format(text.reasonRoundLimit, _lucky); break;
+                case MatchEndReason.NoSurvivors: reason = "Bad luck caught every remaining player."; break;
                 default: reason = string.Empty; break;
             }
             hud.ResultScreen.Show(title, reason, colors);
@@ -810,8 +841,13 @@ namespace DontTrustYourLuck.Presentation.Match
             string status = !finished && shownIsBot
                 ? string.Format(text.botThinking, NameOf(_currentId))
                 : string.Empty;
+            bool frozenTurn = !finished && state.GetPlayer(state.CurrentPlayerId)?.HasDebuff(CardEffectType.Freeze, state.RoundNumber) == true;
+            if (frozenTurn) status = "Frozen: play a card or end your turn. Danger at the end of the round.";
             hud.DicePanel.Show(text, _lastRoll.Count > 0 ? _lastRoll : null, canRoll, canChoose, _selectedDie, status);
-            hud.DicePanel.ShowDestinations(text, ComputeDestinations(canChoose), _lucky, _unlucky);
+            hud.DicePanel.SetRollLabel(frozenTurn ? "End turn" : text.rollButton);
+            var currentPlayer = state.GetPlayer(state.CurrentPlayerId);
+            int sticky = currentPlayer != null && currentPlayer.HasDebuff(CardEffectType.StickyLuck, state.RoundNumber) ? currentPlayer.StickyUnluckyNumber : -1;
+            hud.DicePanel.ShowDestinations(text, ComputeDestinations(canChoose), _lucky, _unlucky, sticky);
 
             if (hud.CardHand != null) RefreshCardHand(text, state, humanTurn, shownIsBot, idle, finished);
         }
@@ -920,6 +956,9 @@ namespace DontTrustYourLuck.Presentation.Match
         }
 
         private void Log(string message) => hud.Messages.Add(message);
+
+        public static string DebuffLabel(CardEffectType type) => type == CardEffectType.Freeze ? "Freeze" :
+            type == CardEffectType.HeavyFeet ? "Heavy Feet" : type == CardEffectType.CrackedDie ? "Cracked Die" : "Sticky Bad Luck";
 
         private string NameOf(int id) =>
             id >= 1 && id <= _seats.Length ? _seats[id - 1].displayName : $"P{id}";

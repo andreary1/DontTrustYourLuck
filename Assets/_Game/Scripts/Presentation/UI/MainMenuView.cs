@@ -104,6 +104,63 @@ namespace DontTrustYourLuck.Presentation.UI
         private Vector2 _logoHome, _cardHome;
         private GameObject _openPanel;
         private float _panelT;
+        private MatchSetupView _setup;
+        public MatchSetupView Setup => _setup;
+        public void UseCircuitInstructions()
+        {
+            text.howToSteps = new[]
+            {
+                "<b>Lucky number:</b> stop <b>exactly</b> on the golden number to win. Passing over it does not count.",
+                "<b>Circuit:</b> after tile 30, keep going from tile 1. The starting tile 0 is not part of the laps.",
+                "<b>Unlucky number:</b> changes every round. End a move on it and you are <b>out</b>, unless a Shield saves you.",
+                "<b>Cards:</b> one per turn. Draw one every two rounds, up to three in hand. A Shield lasts until it blocks.",
+                "<b>Debuffs:</b> start next round and last one round. Frozen players can still use cards; danger strikes at round end.",
+                "<b>Final:</b> the last animal standing wins or, at round 15, whoever is fewest steps from the target along the circuit."
+            };
+            ApplyLabels();
+        }
+
+        /// <summary>Reuses the menu's own sprites and font so runtime-built screens match the printed-paper look.</summary>
+        public MenuSkin BuildSkin()
+        {
+            Transform step = howToPanel != null ? howToPanel.transform.Find("Step1") : null;
+            Transform back = backButtons.Length > 0 && backButtons[0] != null ? backButtons[0].transform : null;
+            Transform band = backdrop != null ? backdrop.transform.Find("TopBand") : null;
+            return new MenuSkin
+            {
+                Window = SpriteOf(howToPanel != null ? howToPanel.transform : null),
+                Plaque = SpriteOf(howToTitleText != null ? howToTitleText.transform.parent : null),
+                Button = SpriteOf(back),
+                Primary = SpriteOf(playButton != null ? playButton.transform : null),
+                Badge = SpriteOf(step != null ? step.Find("Badge") : null),
+                Tile = SpriteOf(band),
+                IconBack = SpriteOf(back != null ? back.Find("Icon") : null),
+                IconPlay = SpriteOf(playButton != null ? playButton.transform.Find("Icon") : null),
+                IconStar = SpriteOf(creditsButton != null ? creditsButton.transform.Find("Icon") : null),
+                IconSun = SpriteOf(step != null ? step.Find("Badge/Icon") : null),
+                IconDie = SpriteOf(howToPanel != null ? howToPanel.transform.Find("Step3/Badge/Icon") : null),
+                IconClock = SpriteOf(howToPanel != null ? howToPanel.transform.Find("Step6/Badge/Icon") : null),
+                Font = howToStepTexts.Length > 0 && howToStepTexts[0] != null ? howToStepTexts[0].font : null,
+                FontBold = howToTitleText != null ? howToTitleText.font : null,
+            };
+        }
+
+        private static Sprite SpriteOf(Transform t)
+        {
+            var image = t != null ? t.GetComponent<Image>() : null;
+            return image != null ? image.sprite : null;
+        }
+        public void ConfigureSetup(System.Collections.Generic.IEnumerable<DontTrustYourLuck.Presentation.Match.ParticipantConfig> seats,
+            Action<System.Collections.Generic.IReadOnlyList<DontTrustYourLuck.Presentation.Match.ParticipantConfig>> selected)
+        {
+            if (_setup != null) return;
+            var go = new GameObject("MatchSetup", typeof(RectTransform));
+            var rt = go.GetComponent<RectTransform>();
+            rt.SetParent(rootGroup != null ? rootGroup.transform : transform, false);
+            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.offsetMin = rt.offsetMax = Vector2.zero;
+            _setup = go.AddComponent<MatchSetupView>();
+            _setup.Configure(seats, chosen => { selected(chosen); BeginOutro(); }, ClosePanel, BuildSkin());
+        }
 
         /// <summary>Raised once the Play outro finished (or immediately when the menu is skipped).</summary>
         public event Action StartGameRequested;
@@ -225,6 +282,18 @@ namespace DontTrustYourLuck.Presentation.UI
         public void Play()
         {
             if (_phase == Phase.Outro || _phase == Phase.Hidden) return;
+            if (_setup != null)
+            {
+                if (_phase == Phase.Intro) { ApplyIntro(1f); _phase = Phase.Idle; SetInteractable(true); }
+                OpenPanelObject(_setup.gameObject);
+                _setup.Show();
+                return;
+            }
+            BeginOutro();
+        }
+
+        private void BeginOutro()
+        {
             ClosePanelsImmediate();
             if (_phase == Phase.Intro) ApplyIntro(1f); // clicked while still animating: settle first
             _phase = Phase.Outro;
@@ -247,6 +316,8 @@ namespace DontTrustYourLuck.Presentation.UI
         public void ClosePanel()
         {
             if (_openPanel == null) return;
+            if (_setup != null && _openPanel == _setup.gameObject && _setup.IsBoardSelection)
+            { _setup.Back(); return; }
             _openPanel.SetActive(false);
             _openPanel = null;
             if (cardGroup != null) cardGroup.interactable = _phase == Phase.Idle;
@@ -266,6 +337,7 @@ namespace DontTrustYourLuck.Presentation.UI
 
         private void ClosePanelsImmediate()
         {
+            if (_setup != null) _setup.gameObject.SetActive(false);
             if (howToPanel != null) howToPanel.SetActive(false);
             if (optionsPanel != null) optionsPanel.SetActive(false);
             if (creditsPanel != null) creditsPanel.SetActive(false);

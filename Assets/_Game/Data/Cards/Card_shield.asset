@@ -18,5 +18,5 @@ MonoBehaviour:
   targeting: 0
   amount: 0
   displayName: Shield
-  shortDescription: 'Before rolling: survive the unlucky tile once.'
+  shortDescription: 'Before rolling: protects you until it blocks one elimination, including from Freeze.'
   art: {fileID: 21300000, guid: 4c4ae6aea4911434b92256959e448d5e, type: 3}

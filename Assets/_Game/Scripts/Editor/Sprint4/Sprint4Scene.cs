@@ -471,10 +471,10 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
 
             var seats = new List<ParticipantConfig>
             {
-                new ParticipantConfig("Onça", GamePalette.SolarYellow, false, characters.ElementAtOrDefault(0)),
-                new ParticipantConfig("Capivara", GamePalette.ColonialBlue, true, characters.ElementAtOrDefault(1)),
-                new ParticipantConfig("Macaco", GamePalette.LeafGreen, true, characters.ElementAtOrDefault(2)),
-                new ParticipantConfig("Tucano", GamePalette.HibiscusPink, true, characters.ElementAtOrDefault(3)),
+                new ParticipantConfig("Jaguar", GamePalette.SolarYellow, false, characters.ElementAtOrDefault(0)),
+                new ParticipantConfig("Capybara", GamePalette.ColonialBlue, true, characters.ElementAtOrDefault(1)),
+                new ParticipantConfig("Monkey", GamePalette.LeafGreen, true, characters.ElementAtOrDefault(2)),
+                new ParticipantConfig("Toucan", GamePalette.HibiscusPink, true, characters.ElementAtOrDefault(3)),
             };
 
             var prefab = AssetDatabase.LoadAssetAtPath<PlayerPieceView>(PiecePrefabPath);

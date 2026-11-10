@@ -14,6 +14,9 @@ namespace DontTrustYourLuck.Presentation.UI
         public PlayerDisplayStatus Status;
         /// <summary>Shield active for the next move (from ShieldActivated/ShieldConsumed events).</summary>
         public bool Shielded;
+        public DontTrustYourLuck.Domain.Cards.CardEffectType? Debuff;
+        public int DebuffRound;
+        public int StickyNumber;
         /// <summary>Character portrait (Sprint 4), or null.</summary>
         public Sprite Portrait;
     }

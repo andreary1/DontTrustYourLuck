@@ -11004,7 +11004,7 @@ Transform:
   m_GameObject: {fileID: 621615828}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -6.2, y: 0, z: -4.2000003}
+  m_LocalPosition: {x: -7.05, y: 0, z: -2.96}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -14286,19 +14286,19 @@ MonoBehaviour:
   - {fileID: 1831911949}
   - {fileID: 842311532}
   participants:
-  - displayName: "On\xE7a"
+  - displayName: Jaguar
     color: {r: 0.95686275, g: 0.7254902, b: 0.25882354, a: 1}
     isBot: 0
     character: {fileID: 11400000, guid: 6169c81a9afdccf43891d139077bad2d, type: 2}
-  - displayName: Capivara
+  - displayName: Capybara
     color: {r: 0.15686275, g: 0.49803922, b: 0.6392157, a: 1}
     isBot: 1
     character: {fileID: 11400000, guid: b2b88807353f966488ad3df576b9bb1a, type: 2}
-  - displayName: Macaco
+  - displayName: Monkey
     color: {r: 0.2627451, g: 0.54509807, b: 0.32156864, a: 1}
     isBot: 1
     character: {fileID: 11400000, guid: 966adae1816d3c349a8e7fe6a700a027, type: 2}
-  - displayName: Tucano
+  - displayName: Toucan
     color: {r: 0.92941177, g: 0.3882353, b: 0.54509807, a: 1}
     isBot: 1
     character: {fileID: 11400000, guid: 940840cef33bff847bd2a41ff2a7612e, type: 2}
@@ -16434,8 +16434,8 @@ Transform:
   m_GameObject: {fileID: 1074291691}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0.08715574, w: 0.9961947}
-  m_LocalPosition: {x: 0, y: 0.9, z: 0}
-  m_LocalScale: {x: 0.38, y: 0.9, z: 0.38}
+  m_LocalPosition: {x: -0.01, y: 0.97, z: 0}
+  m_LocalScale: {x: 0.38, y: 1.37016, z: 0.38}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1163396834}
@@ -30800,7 +30800,7 @@ Transform:
   m_GameObject: {fileID: 1876635125}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 6.2, y: 0, z: -4.2000003}
+  m_LocalPosition: {x: 6.2, y: 0, z: -4.96}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:

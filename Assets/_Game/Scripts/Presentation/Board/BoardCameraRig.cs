@@ -28,6 +28,12 @@ namespace DontTrustYourLuck.Presentation.Board
         private int _lastWidth;
         private int _lastHeight;
         private Rect _safeArea = new Rect(0f, 0f, 1f, 1f);
+        private Transform _focus;
+        private Vector3 _overviewPosition;
+        private Vector3 _overviewCenter;
+        private bool _hasOverview;
+        public Transform FocusTarget => _focus;
+        public void FocusOn(Transform target) => _focus = target;
 
         public Camera Camera => _camera != null ? _camera : (_camera = GetComponent<Camera>());
         public Rect SafeArea => _safeArea;
@@ -71,6 +77,15 @@ namespace DontTrustYourLuck.Presentation.Board
         private void LateUpdate()
         {
             if (Screen.width != _lastWidth || Screen.height != _lastHeight) Frame();
+            if (!_hasOverview) return;
+            Vector3 desired = _overviewPosition;
+            if (_focus != null)
+            {
+                // A modest dolly and partial follow retain the surrounding city and board context.
+                desired += (_focus.position - _overviewCenter) * 0.35f;
+                desired += transform.forward * Vector3.Distance(_overviewPosition, _overviewCenter) * 0.10f;
+            }
+            transform.position = Vector3.Lerp(transform.position, desired, 1f - Mathf.Exp(-4f * Time.unscaledDeltaTime));
         }
 
         private void OnDisable()
@@ -133,6 +148,9 @@ namespace DontTrustYourLuck.Presentation.Board
             }
 
             transform.SetPositionAndRotation(bounds.center - rotation * Vector3.forward * far, rotation);
+            _overviewPosition = transform.position;
+            _overviewCenter = bounds.center;
+            _hasOverview = true;
 
             if (fullScreenSafeArea)
             {

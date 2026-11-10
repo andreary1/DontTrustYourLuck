@@ -55,6 +55,33 @@ namespace DontTrustYourLuck.Presentation.UI
                 chooseButtons[i].onClick.AddListener(() => ChooseClicked?.Invoke(index));
             }
             enabled = false; // Update only runs during the roll flicker
+            EqualizeDieColumns();
+        }
+
+        /// <summary>
+        /// Both die columns get the same width whatever they show: without this the row sizes each column by its
+        /// text, so "-> 1 DANGER!" squeezed the other die. Long previews shrink instead of spilling over.
+        /// </summary>
+        private void EqualizeDieColumns()
+        {
+            for (int i = 0; i < dieFaces.Length; i++)
+            {
+                var column = dieFaces[i] != null ? dieFaces[i].transform.parent : null;
+                if (column == null || column.parent == null || column.parent.GetComponent<HorizontalLayoutGroup>() == null) continue;
+                var le = column.GetComponent<LayoutElement>();
+                if (le == null) le = column.gameObject.AddComponent<LayoutElement>();
+                le.minWidth = 0f;
+                le.preferredWidth = 0f;
+                le.flexibleWidth = 1f;
+            }
+            foreach (var t in destinationTexts)
+            {
+                if (t == null) continue;
+                t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                t.resizeTextForBestFit = true;
+                t.resizeTextMaxSize = t.fontSize;
+                t.resizeTextMinSize = Mathf.Min(12, t.fontSize);
+            }
         }
 
         private void OnDestroy()
@@ -100,7 +127,9 @@ namespace DontTrustYourLuck.Presentation.UI
         /// Destination preview per die: "-> 17", gold when it lands on the lucky number, red with a warning when
         /// it lands on the unlucky number. Null hides the preview. Display only: the rules resolve the real move.
         /// </summary>
-        public void ShowDestinations(HudText text, IReadOnlyList<int> destinations, int lucky, int unlucky)
+        public void SetRollLabel(string label) { if (rollLabel != null) rollLabel.text = label; }
+
+        public void ShowDestinations(HudText text, IReadOnlyList<int> destinations, int lucky, int unlucky, int sticky = -1)
         {
             for (int i = 0; i < destinationTexts.Length; i++)
             {
@@ -113,9 +142,10 @@ namespace DontTrustYourLuck.Presentation.UI
                     continue;
                 }
                 int tile = destinations[i];
-                string format = tile == lucky ? text.destinationLucky : tile == unlucky ? text.destinationUnlucky : text.destinationTile;
+                bool danger = tile == unlucky || tile == sticky;
+                string format = tile == lucky ? text.destinationLucky : danger ? text.destinationUnlucky : text.destinationTile;
                 label.text = string.Format(format, tile);
-                label.color = tile == lucky ? HudPalette.LuckyDark : tile == unlucky ? HudPalette.Danger : HudPalette.Ink;
+                label.color = tile == lucky ? HudPalette.LuckyDark : danger ? HudPalette.Danger : HudPalette.Ink;
             }
         }
 

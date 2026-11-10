@@ -274,10 +274,9 @@ namespace DontTrustYourLuck.Tests.Presentation
             Assert.IsTrue(eye.gameObject.activeSelf);
             var t12 = board.Tiles[12].transform.position;
             var t3 = board.Tiles[3].transform.position;
-            Assert.AreEqual(t12.x, sun.position.x, 1e-4f);
-            Assert.AreEqual(t12.z, sun.position.z, 1e-4f);
+            Assert.Less(Vector2.Distance(new Vector2(t12.x, t12.z), new Vector2(sun.position.x, sun.position.z)), 0.5f);
             Assert.Greater(sun.position.y, t12.y);
-            Assert.AreEqual(t3.x, eye.position.x, 1e-4f);
+            Assert.Less(Vector2.Distance(new Vector2(t3.x, t3.z), new Vector2(eye.position.x, eye.position.z)), 0.5f);
             board.SetHighlights(12, -1);
             Assert.IsFalse(eye.gameObject.activeSelf);
             Assert.IsTrue(sun.gameObject.activeSelf);

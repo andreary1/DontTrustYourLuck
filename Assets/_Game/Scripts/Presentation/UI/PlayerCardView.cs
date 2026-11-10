@@ -36,7 +36,16 @@ namespace DontTrustYourLuck.Presentation.UI
             gameObject.SetActive(true);
             swatch.color = player.Color;
             nameText.text = player.IsBot ? string.Format(text.botTag, player.Name) : player.Name;
+            // The board already shows where each piece stands: the tile line stays hidden so the status
+            // (Shield, debuffs) gets the whole bottom row instead of overlapping it.
             positionText.text = string.Format(text.tileValue, player.Position);
+            if (positionText.enabled)
+            {
+                positionText.enabled = false;
+                statusText.alignment = TextAnchor.LowerLeft;
+                statusText.horizontalOverflow = HorizontalWrapMode.Wrap;
+                statusText.verticalOverflow = VerticalWrapMode.Truncate;
+            }
             highlight.enabled = isCurrent;
             if (portrait != null)
             {
@@ -59,6 +68,13 @@ namespace DontTrustYourLuck.Presentation.UI
                     break;
                 default:
                     statusText.text = player.Shielded ? text.statusShielded : text.statusActive;
+                    if (player.Debuff.HasValue)
+                        statusText.text = (player.Shielded ? "Shield | " : "") +
+                            DontTrustYourLuck.Presentation.Match.MatchDirector.DebuffLabel(player.Debuff.Value) +
+                            $" R{player.DebuffRound}" + (player.StickyNumber > 0 ? $" #{player.StickyNumber}" : "");
+                    statusText.resizeTextForBestFit = true;
+                    statusText.resizeTextMinSize = 12;
+                    statusText.resizeTextMaxSize = 16;
                     statusText.color = player.Shielded ? HudPalette.LuckyDark : HudPalette.Ink;
                     background.color = HudPalette.Card;
                     break;

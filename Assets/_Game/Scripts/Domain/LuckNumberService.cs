@@ -37,7 +37,10 @@ namespace DontTrustYourLuck.Domain
                     $"Lucky number must be in [{_rules.MinLuckyNumber}, {_rules.MaxLuckyNumber}].");
             }
 
-            return _random.NextInt(1, luckyNumber);
+            if (!_rules.Circuit) return _random.NextInt(1, luckyNumber);
+            // Uniform over the entire circuit except the winning tile. No rejection loop.
+            int value = _random.NextInt(1, _rules.BoardLength);
+            return value >= luckyNumber ? value + 1 : value;
         }
     }
 }

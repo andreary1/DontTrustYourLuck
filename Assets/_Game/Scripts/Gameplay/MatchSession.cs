@@ -127,6 +127,8 @@ namespace DontTrustYourLuck.Gameplay
             if (!IsBotTurn) return null;
             var state = _engine.State;
             int id = state.CurrentPlayerId;
+            var card = BotCardDecision.Choose(_engine, out var target);
+            if (card != null) return PlayCard(id, card.InstanceId, target);
             if (state.Phase == MatchPhase.AwaitingRoll) return RollDice(id);
             if (state.Phase == MatchPhase.AwaitingDiceChoice) return ChooseDie(id, GetBotChoice());
             return null;

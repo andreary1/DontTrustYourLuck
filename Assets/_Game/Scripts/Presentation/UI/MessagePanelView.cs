@@ -25,7 +25,31 @@ namespace DontTrustYourLuck.Presentation.UI
             body = bodyText;
         }
 
-        public void ApplyLabels(HudText text) => title.text = text.messagesTitle;
+        private bool _fitted;
+
+        public void ApplyLabels(HudText text)
+        {
+            title.text = text.messagesTitle;
+            FitBody();
+        }
+
+        /// <summary>
+        /// Keeps the log inside its paper frame: a small inset off the dashed border, and long (wrapped) lines
+        /// shrink the text instead of climbing over the title.
+        /// </summary>
+        private void FitBody()
+        {
+            if (_fitted || body == null) return;
+            _fitted = true;
+            var rt = body.rectTransform;
+            rt.offsetMin += new Vector2(8f, 0f);
+            rt.offsetMax -= new Vector2(4f, 0f);
+            body.horizontalOverflow = HorizontalWrapMode.Wrap;
+            body.verticalOverflow = VerticalWrapMode.Truncate;
+            body.resizeTextForBestFit = true;
+            body.resizeTextMaxSize = body.fontSize;
+            body.resizeTextMinSize = Mathf.Min(12, body.fontSize);
+        }
 
         public void Add(string message)
         {

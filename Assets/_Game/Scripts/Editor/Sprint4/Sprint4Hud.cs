@@ -25,7 +25,7 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
 
         public static void Restyle(Sprint4Art.UiArt ui, IReadOnlyList<Sprint4Art.CharacterArt> characters)
         {
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = DontTrustYourLuck.EditorTools.GameFonts.Ui();
             _builtinPanel = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
 
             var root = PrefabUtility.LoadPrefabContents(HudPrefabPath);
@@ -178,7 +178,7 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
                 var nameText = card.Find("Name")?.GetComponent<Text>();
                 if (nameText != null)
                 {
-                    // One line: shrink long names ("Capivara (Bot)") instead of wrapping over the tile line.
+                    // One line: shrink long names ("Capybara (Bot)") instead of wrapping over the tile line.
                     nameText.rectTransform.offsetMin = new Vector2(90f, 44f);
                     nameText.rectTransform.offsetMax = new Vector2(-12f, -8f);
                     nameText.resizeTextForBestFit = true;

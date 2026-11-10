@@ -8,6 +8,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using UnityEngine.UI;
 
 namespace DontTrustYourLuck.Tests.PlayMode
 {
@@ -79,6 +80,12 @@ namespace DontTrustYourLuck.Tests.PlayMode
         {
             yield return WaitIdleMenu();
             _menu.PlayButton.onClick.Invoke();
+            Assert.IsNotNull(_menu.Setup);
+            Assert.IsTrue(_menu.Setup.gameObject.activeSelf);
+            _menu.Setup.SelectCharacter(2);
+            _menu.Setup.ShowBoards();
+            Assert.IsTrue(_menu.Setup.IsBoardSelection);
+            _menu.Setup.ConfirmFortaleza();
             Assert.IsNull(_director.Session, "match starts after the exit animation");
             yield return WaitUntil(() => !_menu.IsVisible, "menu exit");
             Assert.IsNotNull(_director.Session, "Play started a match");
@@ -87,6 +94,32 @@ namespace DontTrustYourLuck.Tests.PlayMode
             Assert.AreEqual(1f, topBar.alpha, 1e-3f);
             Assert.IsTrue(topBar.blocksRaycasts, "HUD is clickable again");
             Assert.AreEqual(31, _director.Board.TileCount);
+        }
+
+        [UnityTest]
+        public IEnumerator Setup_UsesMenuSkin_SeatsFollowSelection_AndBackSteps()
+        {
+            yield return WaitIdleMenu();
+            _menu.PlayButton.onClick.Invoke();
+            var setup = _menu.Setup;
+            var window = setup.transform.Find("Characters").GetComponent<Image>();
+            Assert.IsNotNull(window.sprite, "setup window reuses the menu's paper frame");
+            Assert.AreEqual(_menu.HowToPanel.GetComponent<Image>().sprite, window.sprite);
+
+            setup.SelectCharacter(1);
+            Assert.AreEqual(0, setup.SeatOf(1), "selected animal is the player");
+            Assert.AreEqual(1, setup.SeatOf(2));
+            while (setup.PlayerCount != 2) setup.CyclePlayerCount();
+            Assert.AreEqual(-1, setup.SeatOf(0), "with 2 players the card before the pick sits out");
+
+            setup.ShowBoards();
+            Assert.IsTrue(setup.IsBoardSelection);
+            _menu.ClosePanel(); // Esc / Back on the board page returns to the animals
+            Assert.IsFalse(setup.IsBoardSelection);
+            Assert.IsTrue(setup.gameObject.activeSelf);
+            _menu.ClosePanel();
+            Assert.IsFalse(setup.gameObject.activeSelf);
+            Assert.IsFalse(_menu.IsPanelOpen);
         }
 
         [UnityTest]
@@ -147,10 +180,12 @@ namespace DontTrustYourLuck.Tests.PlayMode
             var finished = _director.Session;
 
             _menu.PlayButton.onClick.Invoke();
+            _menu.Setup.ShowBoards();
+            _menu.Setup.ConfirmFortaleza();
             yield return WaitUntil(() => !_menu.IsVisible, "menu exit");
             Assert.IsFalse(_director.Session.State.IsFinished, "a fresh match started");
             Assert.IsFalse(result.IsVisible, "result screen closed by the new match");
-            Assert.AreSame(finished, _director.Session, "Restart reuses the session (no duplicated listeners)");
+            Assert.AreNotSame(finished, _director.Session, "New setup creates a fresh session with the selected seats");
         }
     }
 }

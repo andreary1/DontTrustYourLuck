@@ -28,6 +28,20 @@ namespace DontTrustYourLuck.Domain
         /// <exception cref="ArgumentOutOfRangeException">For invalid positions, steps or bounce point.</exception>
         public MovementResult Move(int startPosition, int steps, int bounceAt)
         {
+            if (_rules.Circuit)
+            {
+                if (startPosition < 0 || startPosition > _rules.BoardLength || steps < 1 ||
+                    bounceAt < 1 || bounceAt > _rules.BoardLength)
+                    throw new ArgumentOutOfRangeException(nameof(startPosition));
+                var circuitPath = new int[steps];
+                int tile = startPosition;
+                for (int i = 0; i < steps; i++)
+                {
+                    tile = tile % _rules.BoardLength + 1;
+                    circuitPath[i] = tile;
+                }
+                return new MovementResult(startPosition, steps, bounceAt, circuitPath, false);
+            }
             if (bounceAt < 1 || bounceAt > _rules.BoardLength)
                 throw new ArgumentOutOfRangeException(nameof(bounceAt), bounceAt,
                     $"Bounce point must be in [1, {_rules.BoardLength}].");

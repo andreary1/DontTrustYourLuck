@@ -60,7 +60,7 @@ namespace DontTrustYourLuck.EditorTools
                 return;
             }
 
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _font = DontTrustYourLuck.EditorTools.GameFonts.Ui();
             _panelSprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
 
             EnsureFolder(UiPrefabsDir);

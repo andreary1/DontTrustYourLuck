@@ -31,7 +31,9 @@ namespace DontTrustYourLuck.Gameplay
             for (int i = 0; i < roll.Count; i++)
             {
                 int final = engine.PreviewMove(playerId, roll[i]).FinalPosition;
-                int score = Score(final, state.LuckyNumber, state.UnluckyNumber);
+                int score = final == state.LuckyNumber ? 1_000_000 :
+                    engine.IsDangerous(playerId, final) && !state.GetPlayer(playerId).HasShield ? -1_000_000 :
+                    -engine.DistanceToLucky(final);
                 if (score > bestScore) // strict: ties keep the lower index
                 {
                     bestScore = score;
