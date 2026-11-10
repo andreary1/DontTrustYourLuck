@@ -55,6 +55,8 @@ namespace DontTrustYourLuck.Presentation.Match
         [Min(0f)] [SerializeField] private float botChooseDelay = 0.9f;
         [Min(0f)] [SerializeField] private float eventPause = 0.12f;
         [SerializeField] private bool autoStart = true;
+        [Tooltip("Multiplies every playback duration (hops, pauses, bot delays, dice flicker). 1 = original pace, 1.5 = 1.5x slower.")]
+        [Min(0.1f)] [SerializeField] private float playbackSlowdown = 1.5f;
 
         [Header("Feedback timing (presentation only, scaled down by SetTimings in tests)")]
         [Tooltip("Dice faces flicker before showing the rolled values (halved for bots).")]
@@ -87,6 +89,8 @@ namespace DontTrustYourLuck.Presentation.Match
         private ParticipantConfig[] _seats = Array.Empty<ParticipantConfig>();
         private int _lucky;
         private int _unlucky;
+        private readonly List<int> _zoneBuffer = new List<int>();
+        private readonly List<int> _unluckyZone = new List<int>();
         private int _round;
         private int _currentId = -1;
         private int _selectedDie = -1;
@@ -113,6 +117,20 @@ namespace DontTrustYourLuck.Presentation.Match
         public int LastSeed { get; private set; }
         public int LuckyNumber => _lucky;
         public int UnluckyNumber => _unlucky;
+        /// <summary>True when the rules use an unlucky zone wider than one tile.</summary>
+        public bool HasUnluckyZone => _rules != null && _rules.UnluckyZoneRadius > 0;
+
+        /// <summary>Unlucky number or zone as shown to players ("13", "12-14", "30, 1, 2"); empty when none.</summary>
+        public string UnluckyDisplayFor(int center)
+        {
+            if (center <= 0) return string.Empty;
+            if (_rules == null || _lucky <= 0 || _rules.UnluckyZoneRadius == 0) return center.ToString();
+            _rules.GetUnluckyZone(center, _lucky, _zoneBuffer);
+            if (_zoneBuffer.Count <= 1) return center.ToString();
+            bool contiguous = true;
+            for (int i = 1; i < _zoneBuffer.Count; i++) contiguous &= _zoneBuffer[i] == _zoneBuffer[i - 1] + 1;
+            return contiguous ? _zoneBuffer[0] + "-" + _zoneBuffer[_zoneBuffer.Count - 1] : string.Join(", ", _zoneBuffer);
+        }
         public IReadOnlyList<PlayerPieceView> ActivePieces => _activePieces;
         public IReadOnlyList<PlayerDisplay> Players => _players;
         /// <summary>Instance id of the card selected in the hand panel, or null.</summary>
@@ -528,8 +546,10 @@ namespace DontTrustYourLuck.Presentation.Match
 
                 case UnluckyNumberDrawnEvent unlucky:
                     _unlucky = unlucky.UnluckyNumber;
-                    board.SetHighlights(_lucky, _unlucky);
-                    Log(string.Format(text.unluckyDrawn, unlucky.UnluckyNumber));
+                    if (_rules != null) _rules.GetUnluckyZone(_unlucky, _lucky, _unluckyZone); else _unluckyZone.Clear();
+                    board.SetHighlights(_lucky, _unlucky, _unluckyZone);
+                    Log(HasUnluckyZone ? string.Format(text.unluckyZoneDrawn, UnluckyDisplayFor(_unlucky))
+                        : string.Format(text.unluckyDrawn, unlucky.UnluckyNumber));
                     RefreshHud(); // show the new number during the pause
                     yield return Pause(eventPause * 2f);
                     break;
@@ -646,6 +666,17 @@ namespace DontTrustYourLuck.Presentation.Match
                     SetDisplayPosition(retreated.PlayerId, retreated.To);
                     break;
 
+                case PlayerBumpedEvent bumped:
+                    if (bumped.Steps > 0)
+                    {
+                        var bumpPath = new List<int>(bumped.Steps);
+                        for (int tile = bumped.From - 1; tile >= bumped.To; tile--) bumpPath.Add(tile);
+                        yield return AnimatePath(bumped.PlayerId, bumpPath, bumped.To);
+                    }
+                    SetDisplayPosition(bumped.PlayerId, bumped.To);
+                    Log(string.Format(text.playerBumped, NameOf(bumped.BumperId), NameOf(bumped.PlayerId), bumped.To));
+                    break;
+
                 case ShieldActivatedEvent shield:
                     SetDisplayShield(shield.PlayerId, true);
                     if (_pieceById.TryGetValue(shield.PlayerId, out var shieldedPiece)) shieldedPiece.SetShielded(true);
@@ -717,7 +748,7 @@ namespace DontTrustYourLuck.Presentation.Match
             Vector3 fromA = a.transform.position, fromB = b.transform.position;
             Vector3 toA = board.GetTileAnchor(e.PlayerPosition).position;
             Vector3 toB = board.GetTileAnchor(e.TargetPosition).position;
-            float duration = stepDuration * 3f;
+            float duration = stepDuration * 3f * playbackSlowdown;
             float elapsed = 0f;
             while (elapsed < duration)
             {
@@ -737,15 +768,16 @@ namespace DontTrustYourLuck.Presentation.Match
         {
             if (!_pieceById.TryGetValue(playerId, out var piece)) yield break;
             var t = piece.transform;
+            float step = stepDuration * playbackSlowdown;
             for (int i = 0; i < path.Count; i++)
             {
                 Vector3 from = t.position;
                 Vector3 to = board.GetTileAnchor(path[i]).position;
                 float elapsed = 0f;
-                while (elapsed < stepDuration)
+                while (elapsed < step)
                 {
                     elapsed += Time.deltaTime;
-                    float k = Mathf.Clamp01(elapsed / stepDuration);
+                    float k = Mathf.Clamp01(elapsed / step);
                     t.position = Vector3.Lerp(from, to, k) + Vector3.up * (Mathf.Sin(k * Mathf.PI) * hopHeight);
                     yield return null;
                 }
@@ -760,15 +792,17 @@ namespace DontTrustYourLuck.Presentation.Match
         /// <summary>Dice faces flicker (cosmetic only; values come from the already-resolved event).</summary>
         private IEnumerator PlayRollAnimation(int playerId)
         {
-            float duration = rollAnimation * _feedbackScale * (IsBotPlayer(playerId) ? 0.5f : 1f);
+            float duration = rollAnimation * _feedbackScale * playbackSlowdown * (IsBotPlayer(playerId) ? 0.5f : 1f);
             if (duration <= 0f || hud.DicePanel == null) yield break;
             hud.DicePanel.PlayRollAnimation(duration);
-            yield return Pause(duration);
+            yield return new WaitForSeconds(duration);
             hud.DicePanel.StopRollAnimation();
         }
 
-        private static IEnumerator Pause(float seconds)
+        /// <summary>Waits <paramref name="seconds"/> scaled by <see cref="playbackSlowdown"/>.</summary>
+        private IEnumerator Pause(float seconds)
         {
+            seconds *= playbackSlowdown;
             if (seconds > 0f) yield return new WaitForSeconds(seconds);
         }
 
@@ -832,7 +866,7 @@ namespace DontTrustYourLuck.Presentation.Match
             bool shownIsBot = _currentId >= 0 && _session.IsBot(_currentId);
             bool humanTurn = idle && !finished && _currentId >= 0 && !shownIsBot && !_session.IsBotTurn;
 
-            hud.MatchInfo.Show(text, _lucky, _unlucky, _round, _rules.MaxRounds,
+            hud.MatchInfo.Show(text, _lucky, UnluckyDisplayFor(_unlucky), _round, _rules.MaxRounds,
                 _currentId >= 0 ? NameOf(_currentId) : null, _currentId >= 0 ? ColorOf(_currentId) : Color.clear);
             hud.PlayerStatus.Show(text, _players, _currentId);
 
@@ -846,8 +880,11 @@ namespace DontTrustYourLuck.Presentation.Match
             hud.DicePanel.Show(text, _lastRoll.Count > 0 ? _lastRoll : null, canRoll, canChoose, _selectedDie, status);
             hud.DicePanel.SetRollLabel(frozenTurn ? "End turn" : text.rollButton);
             var currentPlayer = state.GetPlayer(state.CurrentPlayerId);
-            int sticky = currentPlayer != null && currentPlayer.HasDebuff(CardEffectType.StickyLuck, state.RoundNumber) ? currentPlayer.StickyUnluckyNumber : -1;
-            hud.DicePanel.ShowDestinations(text, ComputeDestinations(canChoose), _lucky, _unlucky, sticky);
+            var engine = _session.Engine;
+            int dangerFor = currentPlayer != null ? currentPlayer.Id : -1;
+            hud.DicePanel.ShowDestinations(text, ComputeDestinations(canChoose), _lucky,
+                tile => engine != null && dangerFor >= 0 && engine.IsDangerous(dangerFor, tile),
+                tile => engine != null && dangerFor >= 0 && engine.CountBumpVictims(dangerFor, tile) > 0);
 
             if (hud.CardHand != null) RefreshCardHand(text, state, humanTurn, shownIsBot, idle, finished);
         }

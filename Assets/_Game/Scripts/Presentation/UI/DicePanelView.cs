@@ -129,7 +129,12 @@ namespace DontTrustYourLuck.Presentation.UI
         /// </summary>
         public void SetRollLabel(string label) { if (rollLabel != null) rollLabel.text = label; }
 
-        public void ShowDestinations(HudText text, IReadOnlyList<int> destinations, int lucky, int unlucky, int sticky = -1)
+        public void ShowDestinations(HudText text, IReadOnlyList<int> destinations, int lucky, int unlucky, int sticky = -1) =>
+            ShowDestinations(text, destinations, lucky, tile => tile == unlucky || tile == sticky);
+
+        /// <summary>Shows where each die leads; <paramref name="isDanger"/> decides the DANGER label (zone, sticky tile).</summary>
+        public void ShowDestinations(HudText text, IReadOnlyList<int> destinations, int lucky, System.Func<int, bool> isDanger,
+            System.Func<int, bool> isBump = null)
         {
             for (int i = 0; i < destinationTexts.Length; i++)
             {
@@ -142,8 +147,10 @@ namespace DontTrustYourLuck.Presentation.UI
                     continue;
                 }
                 int tile = destinations[i];
-                bool danger = tile == unlucky || tile == sticky;
-                string format = tile == lucky ? text.destinationLucky : danger ? text.destinationUnlucky : text.destinationTile;
+                bool danger = isDanger != null && isDanger(tile);
+                bool bump = !danger && tile != lucky && isBump != null && isBump(tile);
+                string format = tile == lucky ? text.destinationLucky : danger ? text.destinationUnlucky
+                    : bump ? text.destinationBump : text.destinationTile;
                 label.text = string.Format(format, tile);
                 label.color = tile == lucky ? HudPalette.LuckyDark : danger ? HudPalette.Danger : HudPalette.Ink;
             }

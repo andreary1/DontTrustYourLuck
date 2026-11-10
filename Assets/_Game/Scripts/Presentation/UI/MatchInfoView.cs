@@ -37,10 +37,14 @@ namespace DontTrustYourLuck.Presentation.UI
             turnLabel.text = text.turnLabel;
         }
 
-        public void Show(HudText text, int lucky, int unlucky, int round, int maxRounds, string turnName, Color turnColor)
+        public void Show(HudText text, int lucky, int unlucky, int round, int maxRounds, string turnName, Color turnColor) =>
+            Show(text, lucky, unlucky > 0 ? unlucky.ToString() : null, round, maxRounds, turnName, turnColor);
+
+        /// <param name="unluckyText">Unlucky number or zone ("12-14"); null or empty shows the empty value.</param>
+        public void Show(HudText text, int lucky, string unluckyText, int round, int maxRounds, string turnName, Color turnColor)
         {
             luckyValue.text = lucky > 0 ? lucky.ToString() : text.emptyValue;
-            unluckyValue.text = unlucky > 0 ? unlucky.ToString() : text.emptyValue;
+            unluckyValue.text = string.IsNullOrEmpty(unluckyText) ? text.emptyValue : unluckyText;
             roundValue.text = round > 0 ? string.Format(text.roundValue, round, maxRounds) : text.emptyValue;
             turnValue.text = string.IsNullOrEmpty(turnName) ? text.emptyValue : turnName;
             if (turnSwatch != null)

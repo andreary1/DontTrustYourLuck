@@ -58,6 +58,7 @@ MonoBehaviour:
     unlucky: {fileID: 2100000, guid: 7b8cde9a60168214bac56a8a4d59002b, type: 2}
     connector: {fileID: 2100000, guid: 898cb0d1aaa351443b98faded40749ca, type: 2}
     beyondLucky: {fileID: 2100000, guid: f2d8705015a957844b51c78783108841, type: 2}
+    label: {fileID: 2100000, guid: 29b71cc711667a94f93139241bac5d10, type: 2}
   pieceSlotRadius: 0.24
   tiles: []
   connectors: []

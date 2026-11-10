@@ -82,8 +82,9 @@ namespace DontTrustYourLuck.Tests.PlayMode
             Assert.IsNotNull(board.LuckyMarker);
             Assert.IsTrue(board.LuckyMarker.gameObject.activeInHierarchy);
             var lucky = board.Tiles[state.LuckyNumber].transform.position;
-            Assert.AreEqual(lucky.x, board.LuckyMarker.position.x, 1e-3f);
-            Assert.AreEqual(lucky.z, board.LuckyMarker.position.z, 1e-3f);
+            // Markers sit on a tile corner, not on its center.
+            Assert.AreEqual(lucky.x + BoardView.MarkerOffsetXZ.x, board.LuckyMarker.position.x, 1e-3f);
+            Assert.AreEqual(lucky.z + BoardView.MarkerOffsetXZ.y, board.LuckyMarker.position.z, 1e-3f);
             Assert.AreEqual(31, board.TileCount, "the 31 logical tiles are kept");
             for (int i = 0; i < board.TileCount; i++) Assert.AreEqual(i, board.Tiles[i].Index);
         }

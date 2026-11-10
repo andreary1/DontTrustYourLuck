@@ -16,7 +16,7 @@ namespace DontTrustYourLuck.Gameplay
 
     /// <summary>
     /// Simple bot (D11). Priorities: 1) immediate win; 2) avoid elimination; 3) final tile closest to the
-    /// lucky number; 4) tie -> lowest die index. Deterministic and never consumes randomness.
+    /// lucky number, where each opponent bumped counts as 1.5 tiles closer; 4) tie -> lowest die index. Deterministic and never consumes randomness.
     /// </summary>
     public sealed class SimpleBotDecisionProvider : IPlayerDecisionProvider
     {
@@ -33,7 +33,7 @@ namespace DontTrustYourLuck.Gameplay
                 int final = engine.PreviewMove(playerId, roll[i]).FinalPosition;
                 int score = final == state.LuckyNumber ? 1_000_000 :
                     engine.IsDangerous(playerId, final) && !state.GetPlayer(playerId).HasShield ? -1_000_000 :
-                    -engine.DistanceToLucky(final);
+                    -engine.DistanceToLucky(final) * 10 + engine.CountBumpVictims(playerId, final) * 15;
                 if (score > bestScore) // strict: ties keep the lower index
                 {
                     bestScore = score;

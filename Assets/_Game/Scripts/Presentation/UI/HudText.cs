@@ -32,12 +32,15 @@ namespace DontTrustYourLuck.Presentation.UI
         public string destinationTile = "-> {0}";
         public string destinationLucky = "-> {0} LUCKY!";
         public string destinationUnlucky = "-> {0} DANGER!";
+        public string destinationBump = "-> {0} BUMP!";
 
         [Header("Banners (Sprint 4)")]
         public string bannerTurn = "{0}'s turn";
         public string bannerTurnBot = "{0} (Bot)";
         public string bannerUnlucky = "Unlucky number: {0}";
         public string bannerUnluckySub = "Do not end your move there!";
+        public string bannerUnluckyZone = "Unlucky zone: {0}";
+        public string bannerUnluckyZoneSub = "Do not end your move on these tiles!";
         public string bannerCard = "{0}";
         public string bannerCardSub = "played by {0}";
         public string bannerEliminated = "{0} is out!";
@@ -78,6 +81,7 @@ namespace DontTrustYourLuck.Presentation.UI
         public string matchStarted = "The lucky number is {0}!";
         public string roundStarted = "Round {0} started!";
         public string unluckyDrawn = "The unlucky number is {0}!";
+        public string unluckyZoneDrawn = "The unlucky zone is {0}!";
         public string turnChanged = "{0}'s turn.";
         public string diceRolled = "{0} rolled {1} and {2}.";
         public string dieSelected = "{0} chose {1}.";
@@ -90,6 +94,7 @@ namespace DontTrustYourLuck.Presentation.UI
         public string diceRerolled = "New dice: {0} and {1}.";
         public string positionsSwapped = "{0} swapped positions with {1}!";
         public string playerRetreated = "{0} moved back {1} tiles!";
+        public string playerBumped = "{0} bumped {1} back to tile {2}!";
         public string playerRetreatedNone = "{0} is already at the start: no tiles to move back.";
         public string shieldActivated = "{0} activated Shield!";
         public string shieldBlocked = "Shield blocked elimination! {0} is safe on tile {1}.";

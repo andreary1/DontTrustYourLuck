@@ -116,7 +116,7 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
             {
                 even = Load("M_Tile_Even"), odd = Load("M_Tile_Odd"), start = Load("M_Tile_Start"),
                 lucky = Load("M_Tile_Lucky"), unlucky = Load("M_Tile_Unlucky"),
-                connector = Load("M_Path_Connector"), beyondLucky = Load("M_Tile_Beyond"),
+                connector = Load("M_Path_Connector"), beyondLucky = Load("M_Tile_Beyond"), label = Load("M_TileLabel"),
             };
             int tileCount = board.TileCount > 0 ? board.TileCount : 31;
             board.Configure(tilePrefab, materials, tileCount);
