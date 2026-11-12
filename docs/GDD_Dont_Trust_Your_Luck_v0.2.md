@@ -19,7 +19,7 @@
 | Publicação pretendida | itch.io (jogo HTML5 incorporado) | Definido como objetivo |
 | Plataforma de desenvolvimento | PC, com testes frequentes em navegador | Proposto |
 | Jogadores | 2–6; MVP de 2–4 | Proposto |
-| Duração | 5–10 min por partida | Meta |
+| Duração | ~~5–10 min por partida~~ **15–25 min por partida de 5 pontos** (estimativa a validar pela simulação da R5) | Meta **Decidida (11/11/2026, D14)** |
 | Multiplayer | Desejado; local primeiro, online posteriormente | Proposto |
 | Engine | Unity 6 LTS (versão exata a confirmar) | Proposto |
 | Renderização | URP, sujeita à validação de desempenho no WebGL | Proposto |
@@ -44,7 +44,7 @@
 5. Opcionalmente usa uma carta para alterar a situação.
 6. Movimenta-se; resolve efeitos de casa, vitória e eliminação.
 7. Após todos agirem, inicia-se outra rodada com novo número do azar.
-8. A partida termina quando alguém alcança exatamente o alvo ou resta apenas um participante.
+8. A rodada termina quando alguém alcança exatamente o alvo ou resta apenas um participante; quem fecha a rodada ganha 1 ponto. A partida segue em novas rodadas até alguém chegar a 5 pontos (ver "Partida em rodadas e placar").
 
 ### Regras para prototipagem
 
@@ -59,8 +59,20 @@
 - **Excesso de movimento (Decidido):** **rebote no Lucky Number**. Ao atingir o alvo com passos restantes, a peça volta uma casa por passo restante. O destino final decide sorte/azar. Passar pelo alvo não é vencer.
 - **Último sobrevivente:** vence.
 - **Ordem e rodada (Decidido):** ordem fixa por identificador do jogador em todas as rodadas. Uma eliminação no meio da rodada não sorteia novo azar; a rodada continua com o próximo jogador ativo.
-- **Limite de rodadas (Decidido):** 15 rodadas (configurável). Ao fim do limite sem vencedor, vence o jogador ativo mais próximo do Lucky Number (maior posição). Jogadores empatados na mesma casa **compartilham a vitória**.
+- **Limite de rodadas (Decidido):** 15 rodadas (configurável). Ao fim do limite sem vencedor, vence o jogador ativo mais próximo do Lucky Number (maior posição). Jogadores empatados na mesma casa **compartilham a vitória**. ⚠️ **Reinterpretado em 11/11/2026** pela partida em rodadas (abaixo): no jogo, o teto passa a ser **12 ciclos por rodada** e o empate dá +1 ponto a cada empatado. O modo de rodada única antigo continua disponível só para testes.
 - **Limite de tempo por turno:** recomendado para evitar espera, duração a determinar.
+
+### Partida em rodadas e placar (Decidido 11/11/2026, R1)
+
+> **Vocabulário:** **Partida** = do placar 0 até o campeão; **Rodada** = disputa até alguém pontuar; **Ciclo** = todos jogam uma vez e o azar muda (no código, o antigo `RoundNumber`/`MaxRounds`). Nos itens acima, "rodada" ainda significa **ciclo**.
+
+- **Pontos para vencer (D1):** 5 (configurável: 3 rápida, 5 normal, 7 épica).
+- **Pontuação (D5, D6):** +1 por acertar a sorte exata, +1 ao último sobrevivente, e no teto de **12 ciclos** +1 a cada jogador ativo mais próximo da sorte (empatados pontuam todos).
+- **Entre rodadas (D2, D3, D4, D8):** nova casa da sorte; todos voltam à casa 0 (eliminados voltam); mão de cartas mantida, sem nova mão inicial; o primeiro jogador rotaciona.
+- **Intermissão:** 3–5 s (padrão 4 s), botão "próxima rodada" liberado após 1 s; mostra quem pontuou, o motivo e o placar.
+- **Empate em PointsToWin (D7):** se vários chegam ao topo com o mesmo placar, rodada de desempate só entre eles (repete enquanto empatar).
+- **Jogar novamente:** cria uma partida nova (placar zerado).
+- **Proposto (R4):** +1 carta de consolo ao último colocado na intermissão (anti-snowball).
 
 **Exemplo:** Lucky Number 25, Unlucky Number 13, jogador na casa 12, dados 1 e 5. Escolher 1 significa terminar em 13 e ser eliminado; escolher 5 leva à casa 17.
 

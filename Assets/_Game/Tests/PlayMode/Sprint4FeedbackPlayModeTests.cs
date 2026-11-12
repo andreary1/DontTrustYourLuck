@@ -36,6 +36,7 @@ namespace DontTrustYourLuck.Tests.PlayMode
         {
             yield return SceneManager.LoadSceneAsync("GameBoard", LoadSceneMode.Single);
             _director = UnityEngine.Object.FindAnyObjectByType<MatchDirector>();
+            _director?.ConfigureSeries(false); // pre-R1 tests cover the single-round match; series: SeriesPlayModeTests
             _audio = UnityEngine.Object.FindAnyObjectByType<AudioManager>();
             _feedback = UnityEngine.Object.FindAnyObjectByType<VisualFeedbackController>();
             Assert.IsNotNull(_director, "MatchDirector");

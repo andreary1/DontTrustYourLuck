@@ -32,6 +32,7 @@ namespace DontTrustYourLuck.Tests.PlayMode
         {
             yield return SceneManager.LoadSceneAsync("GameBoard", LoadSceneMode.Single);
             _director = UnityEngine.Object.FindAnyObjectByType<MatchDirector>();
+            _director?.ConfigureSeries(false); // pre-R1 tests cover the single-round match; series: SeriesPlayModeTests
             Assert.IsNotNull(_director, "GameBoard scene has a MatchDirector");
             yield return null;
             if (_director.Hud.MainMenu != null) _director.Hud.MainMenu.SkipToGame(); // title screen: start the default match

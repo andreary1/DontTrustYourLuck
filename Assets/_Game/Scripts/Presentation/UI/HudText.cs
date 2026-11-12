@@ -103,5 +103,29 @@ namespace DontTrustYourLuck.Presentation.UI
         public string reasonExactLucky = "Landed exactly on the lucky number {0}.";
         public string reasonLastSurvivor = "Last player standing.";
         public string reasonRoundLimit = "Round limit reached: closest to the lucky number {0}.";
+
+        // New fields keep their defaults in prefabs serialized before R1 (missing YAML keys use the initializer).
+        [Header("Series: rounds and scoreboard (R1)")]
+        [Tooltip("Top bar label for the turn cycle (the unlucky number changes every cycle).")]
+        public string cycleLabel = "CYCLE";
+        public string scoreboardTitle = "ROUND {0} · FIRST TO {1}";
+        public string scoreboardTiebreak = "TIEBREAKER · ROUND {0}";
+        public string scoreValue = "{0}/{1}";
+        public string scoreGain = "+1";
+        public string seriesStarted = "First to {0} points wins the match!";
+        public string seriesRoundStarted = "Round {0} begins!";
+        public string seriesTiebreakStarted = "Tiebreaker round {0}: {1}!";
+        public string pointScored = "{0} scores! ({1} pts)";
+        public string intermissionTitle = "Round {0} over";
+        public string intermissionScorer = "{0} scores a point!";
+        public string intermissionScorers = "{0} score a point!";
+        public string intermissionTiebreak = "Tie at the top: {0} play a tiebreaker!";
+        public string intermissionNext = "Next round";
+        public string intermissionAuto = "Next round in {0}...";
+        public string reasonCycleLimit = "Cycle limit: closest to the lucky number {0}.";
+        public string championTitle = "{0} is the champion!";
+        public string championScore = "Final score: {0}";
+        public string scoreEntry = "{0} {1}";
+        public string scoreJoin = " · ";
     }
 }

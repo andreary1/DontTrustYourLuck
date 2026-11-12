@@ -68,6 +68,38 @@ namespace DontTrustYourLuck.Presentation.UI
 
         private List<AudioSettingsView> _audioViews;
 
+        private ScoreboardStripView _scoreboard;
+        private IntermissionView _intermission;
+
+        /// <summary>Series scoreboard strip (R1), created at runtime under the top bar on first use.</summary>
+        public ScoreboardStripView Scoreboard
+        {
+            get
+            {
+                if (_scoreboard == null)
+                {
+                    var parent = topBar != null ? topBar : (RectTransform)transform;
+                    _scoreboard = ScoreboardStripView.Create(parent, RuntimeUi.FontFrom(this));
+                    if (topBar == null)
+                    {
+                        var rt = _scoreboard.Rect;
+                        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+                    }
+                }
+                return _scoreboard;
+            }
+        }
+
+        /// <summary>Between-rounds overlay (R1), created at runtime over the whole HUD on first use.</summary>
+        public IntermissionView Intermission
+        {
+            get
+            {
+                if (_intermission == null) _intermission = IntermissionView.Create((RectTransform)transform, RuntimeUi.FontFrom(this));
+                return _intermission;
+            }
+        }
+
         public HudText Text => text;
         public MatchInfoView MatchInfo => matchInfo;
         public PlayerStatusView PlayerStatus => playerStatus;
@@ -184,6 +216,7 @@ namespace DontTrustYourLuck.Presentation.UI
             float xMin = leftColumn != null ? ScreenRect(leftColumn).xMax / w : 0f;
             float xMax = rightColumn != null ? ScreenRect(rightColumn).xMin / w : 1f;
             float yMax = topBar != null ? ScreenRect(topBar).yMin / h : 1f;
+            if (_scoreboard != null && _scoreboard.IsVisible) yMax = Mathf.Min(yMax, ScreenRect(_scoreboard.Rect).yMin / h);
             float yMin = bottomBar != null && bottomBar.gameObject.activeInHierarchy ? ScreenRect(bottomBar).yMax / h : 0f;
             xMin = Mathf.Clamp01(xMin);
             xMax = Mathf.Clamp(xMax, xMin + 0.1f, 1f);

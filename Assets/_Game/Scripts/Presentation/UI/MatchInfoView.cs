@@ -33,7 +33,8 @@ namespace DontTrustYourLuck.Presentation.UI
         {
             luckyLabel.text = text.luckyLabel;
             unluckyLabel.text = text.unluckyLabel;
-            roundLabel.text = text.roundLabel;
+            // R1 vocabulary: this counter is the turn cycle; "round" now names a whole race to the lucky number.
+            roundLabel.text = string.IsNullOrEmpty(text.cycleLabel) ? text.roundLabel : text.cycleLabel;
             turnLabel.text = text.turnLabel;
         }
 
