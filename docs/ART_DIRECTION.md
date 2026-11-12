@@ -16,6 +16,8 @@ Nenhum número de desempenho deste documento foi medido. Metas marcadas como "me
 
 ## 1. Visão e estilo
 
+> **Atualização 2026-11-11:** existem dois tabuleiros. O diorama descrito originalmente aqui (praça com casas coloridas) foi renomeado para **Oaxaca** e trocou os adereços brasileiros por mexicanos (papel picado, jacarandá, cactos-órgão, agave, fonte de cantera verde, vasos talavera, barro negro, céu com serra). **Fortaleza** é um diorama novo: calçadão em ondas, base de pedra sob o circuito em "D", mureta, areia, mar, jangadas, coqueiros, prédios da orla, arco de bronze genérico, barraca de coco, coluna do relógio, cajueiro e carnaúba, com luz dourada de pôr do sol vinda da frente-esquerda (legibilidade das peças). Gerador: `Sprint4Scene.RebuildBoardThemes` (menu *Tools > Don't Trust Your Luck > Rebuild City Boards*). A regra "sem elementos mexicanos em Fortaleza" continua valendo, e a recíproca também vale para Oaxaca.
+
 **Conceito:** um diorama 3D compacto de Fortaleza, visto de cima ao entardecer, onde animais 2D parecem recortes de cartas de loteria impressas e envelhecidas andando sobre um tabuleiro numerado de 0 a 30.
 
 Ingredientes do estilo "Tropical Folk Diorama":

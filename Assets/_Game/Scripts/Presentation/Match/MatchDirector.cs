@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using DontTrustYourLuck.Domain;
 using DontTrustYourLuck.Domain.Cards;
 using DontTrustYourLuck.Domain.Match;
+using DontTrustYourLuck.Domain.Series;
 using DontTrustYourLuck.Gameplay;
 using DontTrustYourLuck.Infrastructure;
 using DontTrustYourLuck.Presentation.Art;
@@ -33,6 +34,8 @@ namespace DontTrustYourLuck.Presentation.Match
         [SerializeField] private Transform piecesRoot;
         [Tooltip("Pieces already in the scene, reused before instantiating the prefab.")]
         [SerializeField] private List<PlayerPieceView> scenePieces = new List<PlayerPieceView>();
+        [Tooltip("City boards (environment, circuit outline, lighting) picked in the setup screen. Optional.")]
+        [SerializeField] private BoardThemeSwitcher boardThemes;
 
         [Header("Participants (count must respect MatchRulesConfig)")]
         [SerializeField] private List<ParticipantConfig> participants = new List<ParticipantConfig>
@@ -65,6 +68,16 @@ namespace DontTrustYourLuck.Presentation.Match
         [Min(0f)] [SerializeField] private float cardPlayPause = 0.45f;
         [Tooltip("Show where each die would land (pure rules query, no state change).")]
         [SerializeField] private bool previewDestinations = true;
+
+        [Header("Series (R1): rounds until a champion")]
+        [Tooltip("Off = quick match (one round, the default); the setup screen can switch to a series.")]
+        [SerializeField] private bool seriesMode;
+        [Min(1)] [SerializeField] private int pointsToWin = SeriesRules.DefaultPointsToWin;
+        [Min(1)] [SerializeField] private int maxCyclesPerRound = SeriesRules.DefaultMaxCyclesPerRound;
+        [Tooltip("Intermission auto-continues after this many seconds.")]
+        [Min(0f)] [SerializeField] private float intermissionSeconds = 4f;
+        [Tooltip("The Next round button unlocks after this many seconds.")]
+        [Min(0f)] [SerializeField] private float intermissionMinSeconds = 1f;
 
         private readonly Queue<MatchEvent> _queue = new Queue<MatchEvent>();
         private readonly Dictionary<int, PlayerPieceView> _pieceById = new Dictionary<int, PlayerPieceView>();
@@ -100,6 +113,22 @@ namespace DontTrustYourLuck.Presentation.Match
         private float _feedbackScale = 1f;
         private MovementService _movementPreview;
         private readonly List<int> _destinations = new List<int>(2);
+
+        // Series presentation state, mirrored from series events (never the source of truth).
+        private readonly Dictionary<int, int> _scores = new Dictionary<int, int>();
+        private readonly List<int> _lastScorers = new List<int>(4);
+        private readonly List<int> _roundParticipants = new List<int>(4);
+        private readonly List<ScoreDisplay> _scoreRows = new List<ScoreDisplay>(4);
+        private int _seriesPoints;
+        private int _seriesRound;
+        private bool _tiebreakRound;
+        private MatchEndReason _lastRoundReason;
+        private List<int> _pendingTiebreak;
+        private Coroutine _intermissionRoutine;
+        private IntermissionView _intermissionView;
+        private bool _intermissionSkip;
+        private int _seriesSeed;
+        private int _roundSeedIndex;
 
         /// <summary>Raised when an event starts playing back (in order, after the previous one finished).
         /// Audio and visual feedback listen to this, never to the domain directly.</summary>
@@ -137,12 +166,32 @@ namespace DontTrustYourLuck.Presentation.Match
         public string SelectedCardId => _selectedCard;
         /// <summary>Target picked for the selected card, or -1.</summary>
         public int SelectedTargetId => _selectedTarget;
+        /// <summary>True while the between-rounds overlay is up (series mode).</summary>
+        public bool IsInIntermission => _intermissionRoutine != null;
+        public bool SeriesMode => seriesMode;
+        /// <summary>Displayed score of a player (mirrors series events).</summary>
+        public int DisplayedScore(int playerId) => _scores.TryGetValue(playerId, out int s) ? s : 0;
 
         public void Configure(MatchConfigAsset configAsset, BoardView boardView, BoardCameraRig rig, GameHUD gameHud,
             PlayerPieceView prefab, Transform root, List<PlayerPieceView> existingPieces)
         {
             config = configAsset; board = boardView; cameraRig = rig; hud = gameHud;
             piecePrefab = prefab; piecesRoot = root; scenePieces = existingPieces ?? new List<PlayerPieceView>();
+        }
+
+        public BoardThemeSwitcher BoardThemes => boardThemes;
+        public void SetBoardThemes(BoardThemeSwitcher themes) => boardThemes = themes;
+
+        /// <summary>
+        /// Shows another city board (presentation only: the rules are identical). Pieces are re-placed on the new
+        /// outline and the HUD subtitle follows. Returns false for an unknown id.
+        /// </summary>
+        public bool SelectBoard(string themeId)
+        {
+            if (boardThemes == null || !boardThemes.Apply(themeId)) return false;
+            board.PlacePieces(_activePieces.Count > 0 ? _activePieces : scenePieces);
+            if (hud != null && boardThemes.Current != null) hud.SetSubtitle(boardThemes.Current.displayName);
+            return true;
         }
 
         /// <summary>Editor/builder setup of the seats (names, colors, bot flags, animals). Takes effect on the next match.</summary>
@@ -162,6 +211,33 @@ namespace DontTrustYourLuck.Presentation.Match
             eventPause = Mathf.Max(0f, pause);
             // Feedback (dice flicker, card banner pause) keeps its proportion to the step speed.
             _feedbackScale = Mathf.Clamp01(stepDuration / 0.16f);
+        }
+
+        /// <summary>
+        /// Series setup (R1). Takes effect on the next <see cref="BeginMatch"/>. <paramref name="enabled"/> = false
+        /// restores the legacy single-round match (used by pre-R1 PlayMode tests).
+        /// </summary>
+        public void ConfigureSeries(bool enabled, int points = SeriesRules.DefaultPointsToWin,
+            int maxCycles = SeriesRules.DefaultMaxCyclesPerRound)
+        {
+            seriesMode = enabled;
+            pointsToWin = Mathf.Max(1, points);
+            maxCyclesPerRound = Mathf.Max(1, maxCycles);
+        }
+
+        /// <summary>Quick match or series, as chosen on the setup screen (a series keeps the configured cycle cap).</summary>
+        private void ApplySetupGameType()
+        {
+            var setup = hud != null && hud.MainMenu != null ? hud.MainMenu.Setup : null;
+            if (setup == null) return;
+            ConfigureSeries(setup.IsSeries, setup.IsSeries ? setup.SeriesPoints : pointsToWin, maxCyclesPerRound);
+        }
+
+        /// <summary>Intermission timing (tests use small values). Presentation only.</summary>
+        public void SetIntermissionTimings(float total, float minimum)
+        {
+            intermissionSeconds = Mathf.Max(0f, total);
+            intermissionMinSeconds = Mathf.Clamp(minimum, 0f, intermissionSeconds);
         }
 
         public bool TryGetPiece(int playerId, out PlayerPieceView piece) => _pieceById.TryGetValue(playerId, out piece);
@@ -189,9 +265,15 @@ namespace DontTrustYourLuck.Presentation.Match
         {
             if (board != null && config != null) board.SetCircuit(config.Circuit);
             if (cameraRig != null) cameraRig.Configure(board, 38f);
+            if (boardThemes != null && hud != null)
+            {
+                boardThemes.Reapply(); // the theme owns the camera pitch set just above
+                if (boardThemes.Current != null) hud.SetSubtitle(boardThemes.Current.displayName);
+            }
             if (hud != null && hud.MainMenu != null)
             {
-                hud.MainMenu.ConfigureSetup(participants, seats => SetParticipants(seats));
+                hud.MainMenu.ConfigureSetup(participants, seats => { ApplySetupGameType(); SetParticipants(seats); }, id => SelectBoard(id),
+                    boardThemes != null ? boardThemes.CurrentId ?? boardThemes.DefaultTheme : null);
                 if (config != null && config.Circuit) hud.MainMenu.UseCircuitInstructions();
             }
             if (hud != null)
@@ -204,6 +286,8 @@ namespace DontTrustYourLuck.Presentation.Match
                 hud.CardTargetClicked += OnCardTargetClicked;
                 hud.CardPlayRequested += OnCardPlayRequested;
                 hud.CardCancelRequested += OnCardCancelRequested;
+                _intermissionView = hud.Intermission;
+                _intermissionView.ContinueClicked += OnIntermissionContinue;
             }
         }
 
@@ -225,6 +309,7 @@ namespace DontTrustYourLuck.Presentation.Match
                 hud.CardPlayRequested -= OnCardPlayRequested;
                 hud.CardCancelRequested -= OnCardCancelRequested;
             }
+            if (_intermissionView != null) _intermissionView.ContinueClicked -= OnIntermissionContinue;
             DisposeSession();
         }
 
@@ -271,6 +356,18 @@ namespace DontTrustYourLuck.Presentation.Match
                 return false;
             }
 
+            SeriesRules seriesRules = null;
+            if (seriesMode)
+            {
+                var seriesErrors = SeriesRules.Validate(pointsToWin, maxCyclesPerRound);
+                if (seriesErrors.Count > 0)
+                {
+                    Debug.LogError($"[MatchDirector] Invalid series config: {string.Join(" ", seriesErrors)}", this);
+                    return false;
+                }
+                seriesRules = new SeriesRules(pointsToWin, maxCyclesPerRound);
+            }
+
             if (participants.Count < _rules.MinPlayers || participants.Count > _rules.MaxPlayers)
             {
                 Debug.LogError($"[MatchDirector] {participants.Count} participants; the rules allow " +
@@ -295,9 +392,10 @@ namespace DontTrustYourLuck.Presentation.Match
                 }
             }
             _movementPreview = new MovementService(_rules);
-            _session = new MatchSession(_rules, slots, CreateRandomSource, null, _cardCatalog, CreateCardRandomSource);
+            _session = new MatchSession(_rules, slots, CreateRandomSource, null, _cardCatalog, CreateCardRandomSource, seriesRules);
             _session.EventPublished += OnEvent;
             _session.CommandRejected += OnCommandRejected;
+            PrepareSeriesSeed();
             _session.StartMatch();
             Pump();
             return true;
@@ -313,8 +411,34 @@ namespace DontTrustYourLuck.Presentation.Match
             }
             StopPlayback();
             ClearCardSelection();
+            PrepareSeriesSeed();
             _session.RestartMatch();
             Pump();
+        }
+
+        /// <summary>
+        /// Series mode: one seed per series (logged); every round derives its own seed from it, so a logged series
+        /// seed replays the whole series. Single-round mode keeps one seed per match (unchanged).
+        /// </summary>
+        private void PrepareSeriesSeed()
+        {
+            if (_session == null || !_session.IsSeriesMode) return;
+            _seriesSeed = NextBaseSeed();
+            _roundSeedIndex = 0;
+            Debug.Log($"[MatchDirector] Series seed: {_seriesSeed}", this);
+        }
+
+        /// <summary>Seed of round <paramref name="roundIndex"/> (0-based) of a series.</summary>
+        public static int RoundSeedFor(int seriesSeed, int roundIndex) =>
+            roundIndex == 0 ? seriesSeed : unchecked(seriesSeed * 1103515245 + roundIndex * 12345 + 0x51);
+
+        private int NextBaseSeed()
+        {
+            int seed = useFixedSeed
+                ? unchecked(fixedSeed + _seedCounter)
+                : unchecked(Environment.TickCount * 397 ^ (_seedCounter + 1) * 7919);
+            _seedCounter++;
+            return seed;
         }
 
         /// <summary>Card draw stream, derived from the match seed (called right after <see cref="CreateRandomSource"/>).</summary>
@@ -325,10 +449,12 @@ namespace DontTrustYourLuck.Presentation.Match
 
         private IRandomSource CreateRandomSource()
         {
-            LastSeed = useFixedSeed
-                ? unchecked(fixedSeed + _seedCounter)
-                : unchecked(Environment.TickCount * 397 ^ (_seedCounter + 1) * 7919);
-            _seedCounter++;
+            if (_session != null && _session.IsSeriesMode)
+            {
+                LastSeed = RoundSeedFor(_seriesSeed, _roundSeedIndex++);
+                return new SeededRandomSource(LastSeed);
+            }
+            LastSeed = NextBaseSeed();
             Debug.Log($"[MatchDirector] Match seed: {LastSeed}", this);
             return new SeededRandomSource(LastSeed);
         }
@@ -346,10 +472,13 @@ namespace DontTrustYourLuck.Presentation.Match
         {
             if (_processRoutine != null) StopCoroutine(_processRoutine);
             if (_botRoutine != null) StopCoroutine(_botRoutine);
+            if (_intermissionRoutine != null) StopCoroutine(_intermissionRoutine);
             _processRoutine = null;
             _botRoutine = null;
+            _intermissionRoutine = null;
             _processing = false;
             _queue.Clear();
+            if (_intermissionView != null) _intermissionView.Hide();
         }
 
         private void PreparePieces()
@@ -526,6 +655,7 @@ namespace DontTrustYourLuck.Presentation.Match
             _processing = false;
             _processRoutine = null;
             RefreshHud();
+            ScheduleIntermission();
             ScheduleBot();
         }
 
@@ -536,6 +666,13 @@ namespace DontTrustYourLuck.Presentation.Match
             {
                 case MatchStartedEvent started:
                     ResetPresentation(started);
+                    if (_session.IsSeriesMode)
+                    {
+                        if (_seriesRound == 1) Log(string.Format(text.seriesStarted, _seriesPoints)); // log was just cleared
+                        Log(_tiebreakRound
+                            ? string.Format(text.seriesTiebreakStarted, _seriesRound, JoinNames(_roundParticipants))
+                            : string.Format(text.seriesRoundStarted, _seriesRound));
+                    }
                     Log(string.Format(text.matchStarted, started.LuckyNumber));
                     break;
 
@@ -698,9 +835,149 @@ namespace DontTrustYourLuck.Presentation.Match
                     _currentId = -1;
                     _lastRoll.Clear();
                     board.PlacePieces(_activePieces);
-                    ShowResult(finished);
+                    // Series mode: the round's end is followed by the points award / champion events.
+                    if (!_session.IsSeriesMode) ShowResult(finished);
+                    break;
+
+                // ---- Series (R1): scoreboard, intermission and champion ----
+                case SeriesStartedEvent seriesStarted:
+                    _scores.Clear();
+                    foreach (int id in seriesStarted.PlayerIds) _scores[id] = 0;
+                    _seriesPoints = seriesStarted.PointsToWin;
+                    _seriesRound = 0;
+                    _lastScorers.Clear();
+                    _pendingTiebreak = null;
+                    hud.ResultScreen.Hide();
+                    break;
+
+                case SeriesRoundStartedEvent roundStarted:
+                    _seriesRound = roundStarted.RoundNumber;
+                    _tiebreakRound = roundStarted.IsTiebreaker;
+                    _roundParticipants.Clear();
+                    _roundParticipants.AddRange(roundStarted.ParticipantIds);
+                    _pendingTiebreak = null;
+                    // MatchStartedEvent (next) clears the log; the round line is logged right after it.
+                    break;
+
+                case SeriesPointsAwardedEvent awarded:
+                    foreach (var pair in awarded.Scores) _scores[pair.Key] = pair.Value;
+                    _lastScorers.Clear();
+                    _lastScorers.AddRange(awarded.ScorerIds);
+                    _lastRoundReason = awarded.Reason;
+                    foreach (int id in awarded.ScorerIds) Log(string.Format(text.pointScored, NameOf(id), DisplayedScore(id)));
+                    RefreshHud();
+                    yield return Pause(eventPause * 2f);
+                    break;
+
+                case SeriesTiebreakerEvent tiebreak:
+                    _pendingTiebreak = new List<int>(tiebreak.PlayerIds);
+                    break;
+
+                case SeriesWonEvent won:
+                    foreach (var pair in won.Scores) _scores[pair.Key] = pair.Value;
+                    ShowChampion(won);
                     break;
             }
+        }
+
+        // ---------------- Series: intermission and champion ----------------
+
+        private void ScheduleIntermission()
+        {
+            if (_session == null || !_session.IsSeriesMode || _intermissionRoutine != null || IsBusy) return;
+            var series = _session.SeriesState;
+            if (series == null || series.Phase != SeriesPhase.Intermission) return;
+            _intermissionRoutine = StartCoroutine(Intermission(_session.MatchNumber));
+        }
+
+        private IEnumerator Intermission(int matchNumber)
+        {
+            var text = hud.Text;
+            var view = hud.Intermission;
+            _intermissionSkip = false;
+
+            string title = string.Format(text.intermissionTitle, _seriesRound);
+            string scorers = JoinNames(_lastScorers);
+            string subtitle = _lastScorers.Count == 0 ? ReasonText(_lastRoundReason)
+                : string.Format(_lastScorers.Count == 1 ? text.intermissionScorer : text.intermissionScorers, scorers) +
+                  "\n" + ReasonText(_lastRoundReason);
+            string note = _pendingTiebreak != null ? string.Format(text.intermissionTiebreak, JoinNames(_pendingTiebreak)) : null;
+            view.Show(title, subtitle, note, BuildScoreRows(), _seriesPoints, text.scoreValue, text.scoreGain, text.intermissionNext);
+
+            float elapsed = 0f;
+            int lastShown = -1;
+            while (elapsed < intermissionSeconds && !(_intermissionSkip && elapsed >= intermissionMinSeconds))
+            {
+                view.SetContinueInteractable(elapsed >= intermissionMinSeconds);
+                int left = Mathf.CeilToInt(intermissionSeconds - elapsed);
+                if (left != lastShown)
+                {
+                    view.SetCountdown(string.Format(text.intermissionAuto, left));
+                    lastShown = left;
+                }
+                yield return null;
+                elapsed += Time.deltaTime;
+            }
+
+            view.Hide();
+            _intermissionRoutine = null;
+            // Stale (restart/menu during the intermission): StopPlayback already cleared everything.
+            if (_session == null || _session.MatchNumber != matchNumber) yield break;
+            _session.StartNextRound();
+            Pump();
+        }
+
+        /// <summary>"Next round" click: honored once the minimum intermission time has passed.</summary>
+        private void OnIntermissionContinue() => _intermissionSkip = true;
+
+        private void ShowChampion(SeriesWonEvent won)
+        {
+            var text = hud.Text;
+            var parts = new List<string>(_seats.Length);
+            foreach (var row in BuildScoreRows()) parts.Add(string.Format(text.scoreEntry, row.Name, row.Score));
+            string reason = string.Format(text.championScore, string.Join(text.scoreJoin, parts));
+            hud.ResultScreen.Show(string.Format(text.championTitle, NameOf(won.ChampionId)), reason,
+                new List<Color> { ColorOf(won.ChampionId) });
+        }
+
+        private string ReasonText(MatchEndReason reason)
+        {
+            var text = hud.Text;
+            switch (reason)
+            {
+                case MatchEndReason.ExactLucky: return string.Format(text.reasonExactLucky, _lucky);
+                case MatchEndReason.LastSurvivor: return text.reasonLastSurvivor;
+                case MatchEndReason.RoundLimit: return string.Format(text.reasonCycleLimit, _lucky);
+                default: return string.Empty;
+            }
+        }
+
+        private string JoinNames(IReadOnlyList<int> ids)
+        {
+            var names = new List<string>(ids.Count);
+            foreach (int id in ids) names.Add(NameOf(id));
+            return string.Join(hud.Text.winnerJoin, names);
+        }
+
+        /// <summary>Score rows in seat order (stable, easy to scan); leaders are flagged, not reordered.</summary>
+        private List<ScoreDisplay> BuildScoreRows()
+        {
+            _scoreRows.Clear();
+            int best = 0;
+            foreach (var pair in _scores) best = Mathf.Max(best, pair.Value);
+            for (int i = 0; i < _seats.Length; i++)
+            {
+                int id = i + 1;
+                if (!_scores.TryGetValue(id, out int score)) continue;
+                _scoreRows.Add(new ScoreDisplay
+                {
+                    Id = id, Name = _seats[i].displayName, Color = _seats[i].color, Score = score,
+                    ScoredLastRound = _lastScorers.Contains(id),
+                    Leader = best > 0 && score == best,
+                    InRound = _roundParticipants.Count == 0 || _roundParticipants.Contains(id)
+                });
+            }
+            return _scoreRows;
         }
 
         private void ResetPresentation(MatchStartedEvent started)
@@ -716,6 +993,17 @@ namespace DontTrustYourLuck.Presentation.Match
             ClearCardSelection();
             hud.ResultScreen.Hide();
             hud.Messages.Clear();
+
+            // Only this round's players are on the board (a tiebreaker leaves the others out, R1/D7).
+            _activePieces.Clear();
+            for (int seatId = 1; seatId <= _seats.Length; seatId++) // seat order, as PreparePieces
+            {
+                if (!_pieceById.TryGetValue(seatId, out var seatPiece)) continue;
+                bool inRound = false;
+                foreach (int id in started.PlayerIds) inRound |= id == seatId;
+                seatPiece.gameObject.SetActive(inRound);
+                if (inRound) _activePieces.Add(seatPiece);
+            }
 
             _players.Clear();
             foreach (int id in started.PlayerIds)
@@ -866,9 +1154,11 @@ namespace DontTrustYourLuck.Presentation.Match
             bool shownIsBot = _currentId >= 0 && _session.IsBot(_currentId);
             bool humanTurn = idle && !finished && _currentId >= 0 && !shownIsBot && !_session.IsBotTurn;
 
-            hud.MatchInfo.Show(text, _lucky, UnluckyDisplayFor(_unlucky), _round, _rules.MaxRounds,
+            int maxCycles = _session.Engine != null ? _session.Engine.Rules.MaxRounds : _rules.MaxRounds;
+            hud.MatchInfo.Show(text, _lucky, UnluckyDisplayFor(_unlucky), _round, maxCycles,
                 _currentId >= 0 ? NameOf(_currentId) : null, _currentId >= 0 ? ColorOf(_currentId) : Color.clear);
             hud.PlayerStatus.Show(text, _players, _currentId);
+            RefreshScoreboard(text);
 
             bool canRoll = idle && humanTurn && state.Phase == MatchPhase.AwaitingRoll;
             bool canChoose = idle && humanTurn && state.Phase == MatchPhase.AwaitingDiceChoice;
@@ -887,6 +1177,25 @@ namespace DontTrustYourLuck.Presentation.Match
                 tile => engine != null && dangerFor >= 0 && engine.CountBumpVictims(dangerFor, tile) > 0);
 
             if (hud.CardHand != null) RefreshCardHand(text, state, humanTurn, shownIsBot, idle, finished);
+        }
+
+        private void RefreshScoreboard(HudText text)
+        {
+            if (!_session.IsSeriesMode || _scores.Count == 0)
+            {
+                if (hud.Scoreboard.IsVisible)
+                {
+                    hud.Scoreboard.Hide();
+                    _viewportPending = true; // the board can use the freed space again
+                }
+                return;
+            }
+            bool wasVisible = hud.Scoreboard.IsVisible;
+            string title = _tiebreakRound
+                ? string.Format(text.scoreboardTiebreak, _seriesRound)
+                : string.Format(text.scoreboardTitle, Mathf.Max(1, _seriesRound), _seriesPoints);
+            hud.Scoreboard.Show(title, BuildScoreRows(), _seriesPoints, text.scoreValue);
+            if (!wasVisible) _viewportPending = true; // reframe the board below the strip next frame
         }
 
         private void RefreshCardHand(HudText text, MatchState state, bool humanTurn, bool shownIsBot, bool idle, bool finished)

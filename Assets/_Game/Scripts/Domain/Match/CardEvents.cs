@@ -7,7 +7,9 @@ namespace DontTrustYourLuck.Domain.Match
         /// <summary>Dealt at match start.</summary>
         StartingHand,
         /// <summary>Granted during the match (tests only for now; special draw tiles are not designed yet).</summary>
-        Granted
+        Granted,
+        /// <summary>Kept from the previous round of a series (R1, decision D4).</summary>
+        CarriedOver
     }
 
     /// <summary>A card entered a player's hand.</summary>

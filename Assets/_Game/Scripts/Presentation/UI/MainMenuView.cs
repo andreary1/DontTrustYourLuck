@@ -37,7 +37,7 @@ namespace DontTrustYourLuck.Presentation.UI
             "<b>Don't Trust Your Luck!</b>\nA party board game made for Unity Game Jam 2026.\n\n" +
             "<b>Design & development</b>\nandreary1\n\n" +
             "<b>Built with</b>\nUnity 6 - Universal Render Pipeline\n\n" +
-            "<b>Art & audio</b>\nOriginal art and music made for this project.\nVisual inspiration: Fortaleza, Ceará (Brazil).\n\n" +
+            "<b>Art & audio</b>\nOriginal art and music made for this project.\nVisual inspiration: Oaxaca (Mexico) and Fortaleza, Ceará (Brazil).\n\n" +
             "<b>Thanks for playing!</b>";
     }
 
@@ -151,7 +151,8 @@ namespace DontTrustYourLuck.Presentation.UI
             return image != null ? image.sprite : null;
         }
         public void ConfigureSetup(System.Collections.Generic.IEnumerable<DontTrustYourLuck.Presentation.Match.ParticipantConfig> seats,
-            Action<System.Collections.Generic.IReadOnlyList<DontTrustYourLuck.Presentation.Match.ParticipantConfig>> selected)
+            Action<System.Collections.Generic.IReadOnlyList<DontTrustYourLuck.Presentation.Match.ParticipantConfig>> selected,
+            Action<string> boardSelected = null, string initialBoard = null)
         {
             if (_setup != null) return;
             var go = new GameObject("MatchSetup", typeof(RectTransform));
@@ -159,7 +160,7 @@ namespace DontTrustYourLuck.Presentation.UI
             rt.SetParent(rootGroup != null ? rootGroup.transform : transform, false);
             rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.offsetMin = rt.offsetMax = Vector2.zero;
             _setup = go.AddComponent<MatchSetupView>();
-            _setup.Configure(seats, chosen => { selected(chosen); BeginOutro(); }, ClosePanel, BuildSkin());
+            _setup.Configure(seats, chosen => { selected(chosen); BeginOutro(); }, ClosePanel, BuildSkin(), boardSelected, initialBoard);
         }
 
         /// <summary>Raised once the Play outro finished (or immediately when the menu is skipped).</summary>

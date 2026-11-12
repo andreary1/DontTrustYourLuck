@@ -523,6 +523,10 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
         {
             public Texture2D Cobble, Stone, Grass, Leaves, LeavesDark, Bark, Wood, Roof, Awning, Sky, Sail, Flag, Sand;
             public Texture2D[] Facades;
+            // Oaxaca
+            public Texture2D PapelPicado, LeavesPurple, Cactus, Talavera;
+            // Fortaleza
+            public Texture2D SkyFortaleza, Calcadao, Sea, Tower;
             public Texture2D TileEven, TileOdd, TileStart, TileLucky, TileUnlucky, TileBeyond;
             public Texture2D VfxDot, VfxSquare, VfxStar;
         }
@@ -543,7 +547,15 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
                 Roof = Tex("T_Env_Roof", 32, 32, DrawRoof, true),
                 Awning = Tex("T_Env_Awning", 32, 32, DrawAwning, true),
                 Sand = Tex("T_Env_Sand", 32, 32, c => Noise(c, PixelCanvas.Hex(0xEBD3A0), 0.6f, 0.08f), true),
-                Sky = Tex("T_Env_SkyBackdrop", 256, 96, DrawSky, false),
+                Sky = Tex("T_Env_SkyBackdrop", 256, 96, DrawSkyOaxaca, false),
+                SkyFortaleza = Tex("T_Env_Sky_Fortaleza", 256, 96, DrawSkyFortaleza, false),
+                PapelPicado = Tex("T_Env_PapelPicado", 16, 20, DrawPapelPicado, false),
+                LeavesPurple = Tex("T_Env_LeavesPurple", 32, 32, c => DrawLeaves(c, PixelCanvas.Hex(0xA47CC8), PixelCanvas.Hex(0x7A55A6)), true),
+                Cactus = Tex("T_Env_Cactus", 16, 32, DrawCactus, true),
+                Talavera = Tex("T_Env_Talavera", 32, 32, DrawTalavera, true),
+                Calcadao = Tex("T_Env_Calcadao", 64, 64, DrawCalcadao, true),
+                Sea = Tex("T_Env_Sea", 32, 32, DrawSea, true),
+                Tower = Tex("T_Env_Tower", 32, 64, DrawTower, true),
                 Sail = Tex("T_Env_Sail", 32, 32, DrawSail, false),
                 Flag = Tex("T_Env_Bandeirinha", 16, 16, DrawFlag, false),
                 Facades = new[]
@@ -672,33 +684,195 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
             c.FillRect(0, 0, 32, 2, InkDeep);
         }
 
-        private static void DrawSky(PixelCanvas c)
+        private static void SkyGradient(PixelCanvas c, (float t, Color32 col)[] stops)
         {
-            var top = PixelCanvas.Hex(0x8FB9CF);
-            var mid = PixelCanvas.Hex(0xF5C79A);
-            var low = PixelCanvas.Hex(0xF9DFA6);
             for (int y = 0; y < c.Height; y++)
             {
                 float t = y / (float)(c.Height - 1);
-                var col = t > 0.55f ? PixelCanvas.Mix(mid, top, (t - 0.55f) / 0.45f) : PixelCanvas.Mix(low, mid, t / 0.55f);
+                var col = stops[stops.Length - 1].col;
+                for (int i = 1; i < stops.Length; i++)
+                {
+                    if (t > stops[i].t) continue;
+                    col = PixelCanvas.Mix(stops[i - 1].col, stops[i].col, (t - stops[i - 1].t) / (stops[i].t - stops[i - 1].t));
+                    break;
+                }
                 for (int x = 0; x < c.Width; x++) c.Set(x, y, col);
             }
-            c.FillCircle(196, 30, 13, PixelCanvas.Hex(0xFFF0C4)); // low afternoon sun
-            c.FillCircle(196, 30, 10, PixelCanvas.Hex(0xFFE08A));
+        }
+
+        /// <summary>Oaxaca: warm afternoon over the valley, layered Sierra silhouettes (inland city, no sea).</summary>
+        private static void DrawSkyOaxaca(PixelCanvas c)
+        {
+            SkyGradient(c, new[] { (0f, PixelCanvas.Hex(0xF9DFA6)), (0.55f, PixelCanvas.Hex(0xF5C79A)), (1f, PixelCanvas.Hex(0x8FB9CF)) });
+            c.FillCircle(196, 40, 13, PixelCanvas.Hex(0xFFF0C4)); // low afternoon sun
+            c.FillCircle(196, 40, 10, PixelCanvas.Hex(0xFFE08A));
             for (int i = 0; i < 7; i++)
             {
-                float x = 12 + i * 37 + c.Rand() * 10, y = 58 + c.Rand() * 26;
+                float x = 12 + i * 37 + c.Rand() * 10, y = 62 + c.Rand() * 24;
                 c.FillEllipse(x, y, 16, 4, PixelCanvas.Hex(0xFBEBD6));
                 c.FillEllipse(x + 6, y + 3, 9, 4, PixelCanvas.Hex(0xFFF6EA));
             }
-            // Sea strip with jangada sails on the horizon (Fortaleza coast).
-            c.FillRect(0, 0, c.Width, 12, PixelCanvas.Hex(0x3F86A6));
-            for (int i = 0; i < 40; i++) c.FillRect((int)(c.Rand() * c.Width), (int)(c.Rand() * 11), 3, 1, PixelCanvas.Hex(0x7FB9CF));
-            foreach (int x in new[] { 40, 118, 170 })
+            // Far and near mountain ridges (tileable sums of sines across the width).
+            var far = PixelCanvas.Hex(0xA996B8);
+            var near = PixelCanvas.Hex(0x7E9374);
+            for (int x = 0; x < c.Width; x++)
             {
-                c.FillPolygon(new[] { new Vector2(x, 11), new Vector2(x + 7, 11), new Vector2(x + 1, 24) }, White);
-                c.FillRect(x - 2, 10, 11, 1, InkDeep);
+                float u = x / (float)c.Width * Mathf.PI * 2f;
+                int hFar = (int)(26 + 7 * Mathf.Sin(u * 2f + 0.6f) + 4 * Mathf.Sin(u * 5f + 1.3f) + 2 * Mathf.Sin(u * 11f));
+                int hNear = (int)(14 + 5 * Mathf.Sin(u * 3f + 2.1f) + 3 * Mathf.Sin(u * 7f + 0.4f));
+                for (int y = 0; y < hFar; y++) c.Set(x, y, y == hFar - 1 ? PixelCanvas.Mix(far, White, 0.25f) : far);
+                for (int y = 0; y < hNear; y++) c.Set(x, y, y == hNear - 1 ? PixelCanvas.Mix(near, PixelCanvas.Hex(0xF5C79A), 0.35f) : near);
             }
+            c.Grain(0.15f, 0.04f);
+        }
+
+        /// <summary>Fortaleza: sunset over the Atlantic, sun on the horizon, distant beachfront skyline, jangada sails.</summary>
+        private static void DrawSkyFortaleza(PixelCanvas c)
+        {
+            const int horizon = 34;
+            SkyGradient(c, new[]
+            {
+                (0f, PixelCanvas.Hex(0xFCD98A)), (0.42f, PixelCanvas.Hex(0xF7B565)), (0.62f, PixelCanvas.Hex(0xEC9180)),
+                (0.82f, PixelCanvas.Hex(0xB98AA6)), (1f, PixelCanvas.Hex(0x7684B8))
+            });
+            c.FillCircle(70, horizon + 2, 18, PixelCanvas.Hex(0xFFE7A6));
+            c.FillCircle(70, horizon + 2, 14, PixelCanvas.Hex(0xFFD36E));
+            for (int i = 0; i < 6; i++)
+            {
+                float x = 20 + i * 42 + c.Rand() * 12, y = 58 + c.Rand() * 28;
+                c.FillEllipse(x, y, 18, 3.5f, PixelCanvas.Hex(0xF4A493));
+                c.FillEllipse(x + 5, y + 2, 10, 3, PixelCanvas.Hex(0xFBC6A6));
+            }
+            // Distant towers on the right, sunlit windows.
+            var tower = PixelCanvas.Hex(0x8B6E8C);
+            int tx = 150;
+            while (tx < c.Width - 2)
+            {
+                int w = 6 + (int)(c.Rand() * 7), h = 8 + (int)(c.Rand() * 18);
+                c.FillRect(tx, horizon, w, h, tower);
+                for (int wy = horizon + 2; wy < horizon + h - 1; wy += 3)
+                    for (int wx = tx + 1; wx < tx + w - 1; wx += 2)
+                        if (c.Rand() > 0.55f) c.Set(wx, wy, PixelCanvas.Hex(0xFFD98A));
+                tx += w + 1 + (int)(c.Rand() * 3);
+            }
+            // Sea with the sun's golden reflection.
+            c.FillRect(0, 0, c.Width, horizon, PixelCanvas.Hex(0x3C7896));
+            for (int i = 0; i < 60; i++) c.FillRect((int)(c.Rand() * c.Width), (int)(c.Rand() * (horizon - 1)), 3, 1, PixelCanvas.Hex(0x6FA8C0));
+            for (int y = 2; y < horizon; y += 2)
+            {
+                int half = 3 + (horizon - y) / 3;
+                c.FillRect(70 - half + (int)(c.Rand() * 3), y, half * 2 - (int)(c.Rand() * 4), 1, PixelCanvas.Hex(0xF5C46B));
+            }
+            foreach (int x in new[] { 26, 118, 136 })
+            {
+                c.FillPolygon(new[] { new Vector2(x, horizon - 1), new Vector2(x + 7, horizon - 1), new Vector2(x + 1, horizon + 12) }, White);
+                c.FillRect(x - 2, horizon - 2, 11, 1, InkDeep);
+            }
+        }
+
+        /// <summary>Papel picado: cut tissue-paper banner (alpha-clipped holes, scalloped hem), tinted per material.</summary>
+        private static void DrawPapelPicado(PixelCanvas c)
+        {
+            c.Fill(White);
+            for (int x = 0; x < 16; x += 4) // scalloped bottom edge
+            {
+                c.Set(x, 0, Clear); c.Set(x + 1, 0, Clear); c.Set(x, 1, Clear);
+            }
+            c.FillRect(0, 18, 16, 2, PixelCanvas.Mix(White, InkDeep, 0.15f)); // fold over the string
+            // Cut-out flower and diamonds.
+            c.FillCircle(7.5f, 10f, 3.2f, Clear);
+            c.FillCircle(7.5f, 10f, 1.4f, White);
+            foreach (var (x, y) in new[] { (2, 4), (13, 4), (2, 15), (13, 15) })
+            {
+                c.Set(x, y, Clear); c.Set(x - 1, y, Clear); c.Set(x + 1, y, Clear); c.Set(x, y - 1, Clear); c.Set(x, y + 1, Clear);
+            }
+            for (int x = 4; x < 12; x += 3) c.Set(x, 4, Clear);
+        }
+
+        private static void DrawCactus(PixelCanvas c)
+        {
+            c.Fill(PixelCanvas.Hex(0x5E8F5A));
+            for (int x = 0; x < 16; x += 4)
+            {
+                for (int y = 0; y < 32; y++) c.Set(x, y, PixelCanvas.Hex(0x416B40));
+                for (int y = 0; y < 32; y++) c.Set(x + 2, y, PixelCanvas.Hex(0x76A86E));
+                for (int y = 1; y < 32; y += 5) c.Set(x + 1, y, PixelCanvas.Hex(0xE9E2C4)); // spines
+            }
+        }
+
+        /// <summary>Talavera-style glaze: cream with cobalt bands and flowers (original pattern).</summary>
+        private static void DrawTalavera(PixelCanvas c)
+        {
+            var cobalt = PixelCanvas.Hex(0x2D4E9C);
+            c.Fill(PixelCanvas.Hex(0xF4EEDC));
+            c.FillRect(0, 0, 32, 4, cobalt);
+            c.FillRect(0, 28, 32, 4, cobalt);
+            c.FillRect(0, 5, 32, 1, cobalt);
+            c.FillRect(0, 26, 32, 1, cobalt);
+            foreach (float x in new[] { 8f, 24f })
+            {
+                for (int k = 0; k < 6; k++)
+                {
+                    float a = k * Mathf.PI / 3f;
+                    c.FillCircle(x + Mathf.Cos(a) * 4f, 16 + Mathf.Sin(a) * 4f, 2f, cobalt);
+                }
+                c.FillCircle(x, 16, 2f, Gold);
+            }
+            for (int y = 10; y < 23; y += 4) { c.Set(0, y, cobalt); c.Set(16, y, cobalt); }
+            c.Grain(0.2f, 0.04f);
+        }
+
+        /// <summary>Beachfront promenade mosaic: wavy dark bands on cream stone (tileable both ways).</summary>
+        private static void DrawCalcadao(PixelCanvas c)
+        {
+            var cream = PixelCanvas.Hex(0xE9DEC6);
+            var dark = PixelCanvas.Hex(0x7A5E4A);
+            var ochre = PixelCanvas.Hex(0xD3A574);
+            c.Fill(cream);
+            for (int x = 0; x < 64; x++)
+            {
+                float u = x / 64f * Mathf.PI * 2f;
+                for (int k = 0; k < 2; k++)
+                {
+                    int yc = k * 32 + 12 + (int)Mathf.Round(Mathf.Sin(u + k * Mathf.PI) * 6f);
+                    for (int t = -1; t <= 1; t++) c.Set(x, (yc + t + 64) % 64, dark);
+                    c.Set(x, (yc + 5 + 64) % 64, ochre);
+                }
+            }
+            // Mosaic joints: a pixel grid of slightly darker stones.
+            for (int y = 0; y < 64; y += 3)
+                for (int x = (y / 3) % 2; x < 64; x += 3)
+                    c.Set(x, y, PixelCanvas.Mix(c.Get(x, y), InkDeep, 0.12f));
+            c.Grain(0.25f, 0.05f);
+        }
+
+        private static void DrawSea(PixelCanvas c)
+        {
+            c.Fill(PixelCanvas.Hex(0x3A82A4));
+            for (int i = 0; i < 22; i++)
+            {
+                int x = (int)(c.Rand() * 32), y = (int)(c.Rand() * 32);
+                for (int k = 0; k < 4; k++) c.Set((x + k) % 32, y, PixelCanvas.Hex(0x74B4CC));
+                c.Set((x + 1) % 32, (y + 31) % 32, PixelCanvas.Hex(0x2C6A8C));
+            }
+            for (int i = 0; i < 5; i++) c.Set((int)(c.Rand() * 32), (int)(c.Rand() * 32), PixelCanvas.Hex(0xF3C27A)); // sunset glints
+        }
+
+        /// <summary>Beachfront tower facade: window grid with balconies, a few windows lit by the sunset.</summary>
+        private static void DrawTower(PixelCanvas c)
+        {
+            c.Fill(PixelCanvas.Hex(0xEDE6DA));
+            for (int y = 2; y < 64; y += 8)
+            {
+                c.FillRect(0, y - 2, 32, 1, PixelCanvas.Hex(0xC9BFB0)); // balcony slab
+                for (int x = 2; x < 32; x += 6)
+                {
+                    bool lit = c.Rand() > 0.72f;
+                    c.FillRect(x, y, 4, 4, lit ? PixelCanvas.Hex(0xFFD27A) : PixelCanvas.Hex(0x4E6A8A));
+                    if (!lit) c.Set(x, y + 3, PixelCanvas.Hex(0x86A4C0));
+                }
+            }
+            c.Grain(0.2f, 0.04f);
         }
 
         private static void DrawSail(PixelCanvas c)

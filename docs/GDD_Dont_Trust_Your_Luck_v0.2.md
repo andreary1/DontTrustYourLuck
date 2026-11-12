@@ -19,13 +19,13 @@
 | Publicação pretendida | itch.io (jogo HTML5 incorporado) | Definido como objetivo |
 | Plataforma de desenvolvimento | PC, com testes frequentes em navegador | Proposto |
 | Jogadores | 2–6; MVP de 2–4 | Proposto |
-| Duração | 5–10 min por partida | Meta |
+| Duração | ~~5–10 min por partida~~ **15–25 min por partida de 5 pontos** (estimativa a validar pela simulação da R5) | Meta **Decidida (11/11/2026, D14)** |
 | Multiplayer | Desejado; local primeiro, online posteriormente | Proposto |
 | Engine | Unity 6 LTS (versão exata a confirmar) | Proposto |
 | Renderização | URP, sujeita à validação de desempenho no WebGL | Proposto |
 | Estética | 2.5D: cenário 3D pixel art + personagens 2D | Definido |
 | Cenários | Cidades latino-americanas reais, inspiradas em artistas de cada país | Definido como direção |
-| Primeiro cenário | Fortaleza, com referências a Aldemir Martins | Proposto |
+| Cenários jogáveis | **Oaxaca** (praça de mercado, circuito retangular) e **Fortaleza** (calçadão da Beira-Mar ao pôr do sol, circuito em "D") — mesmas regras nos dois | **Definido (2026-11-11)** |
 
 ## 2. Pilares de design
 
@@ -44,7 +44,7 @@
 5. Opcionalmente usa uma carta para alterar a situação.
 6. Movimenta-se; resolve efeitos de casa, vitória e eliminação.
 7. Após todos agirem, inicia-se outra rodada com novo número do azar.
-8. A partida termina quando alguém alcança exatamente o alvo ou resta apenas um participante.
+8. A rodada termina quando alguém alcança exatamente o alvo ou resta apenas um participante; quem fecha a rodada ganha 1 ponto. A partida segue em novas rodadas até alguém chegar a 5 pontos (ver "Partida em rodadas e placar").
 
 ### Regras para prototipagem
 
@@ -61,9 +61,21 @@
 - **Excesso de movimento (Decidido):** **rebote no Lucky Number**. Ao atingir o alvo com passos restantes, a peça volta uma casa por passo restante. O destino final decide sorte/azar. Passar pelo alvo não é vencer.
 - **Último sobrevivente:** vence.
 - **Esbarrão na mesma casa (aprovado pelo usuário em 10/11/2026 para playtest; configurável):** quem termina um movimento de **dado** numa casa ocupada empurra **todos** os ocupantes `bumpDistance` casas para trás (padrão 3; mínimo casa 0). A largada (0) e o Lucky Number nunca causam esbarrão (acertar o alvo vence na hora). Quem é eliminado ao chegar não empurra; quem é salvo pelo Escudo empurra. Ser empurrado não ativa sorte/azar (mesma regra de Swap e Recuar), e o Escudo não protege do empurrão. Movimentos por carta não causam esbarrão. **Motivo:** simulação (5000 partidas, 4 jogadores, zona do azar + rotação): ~5,4 esbarrões por partida, +0,7 rodada de duração, limite de rodadas em 2,3%. "Volta para a largada" (Ludo) foi rejeitada: +1,5 rodada e punitiva demais no circuito de 30 casas.
-- **Ordem e rodada (Decidido; ver rotação abaixo):** ordem por identificador do jogador; com `rotateFirstPlayer` (ativo na config padrão desde 10/11/2026) o primeiro assento gira a cada rodada. Uma eliminação no meio da rodada não sorteia novo azar; a rodada continua com o próximo jogador ativo.
-- **Limite de rodadas (Decidido):** 15 rodadas (configurável). Ao fim do limite sem vencedor, vence o jogador ativo mais próximo do Lucky Number (maior posição). Jogadores empatados na mesma casa **compartilham a vitória**.
+- **Ordem e rodada (Decidido; ver rotação abaixo):** ordem por identificador do jogador; com `rotateFirstPlayer` (ativo na config padrão desde 10/11/2026) o primeiro assento gira a cada rodada. Uma eliminação no meio da rodada não sorteia novo azar; a rodada continua com o próximo jogador ativo. Na partida em rodadas, o primeiro jogador da rodada também avança um assento a cada nova rodada (D8); a rotação por ciclo é aplicada a partir dele.
+- **Limite de rodadas (Decidido):** 15 rodadas (configurável). Ao fim do limite sem vencedor, vence o jogador ativo mais próximo do Lucky Number (maior posição). Jogadores empatados na mesma casa **compartilham a vitória**. ⚠️ **Na partida em rodadas (11/11/2026)**, o teto passa a ser **12 ciclos por rodada** e o empate dá +1 ponto a cada empatado (ver abaixo).
 - **Limite de tempo por turno:** recomendado para evitar espera, duração a determinar.
+
+### Partida em rodadas e placar (Decidido 11/11/2026, R1)
+
+> **Vocabulário:** **Partida** = do placar 0 até o campeão; **Rodada** = disputa até alguém pontuar; **Ciclo** = todos jogam uma vez e o azar muda (no código, o antigo `RoundNumber`/`MaxRounds`). Nos itens acima, "rodada" ainda significa **ciclo**.
+
+- **Pontos para vencer (D1):** 5 (configurável: 3 rápida, 5 normal, 7 épica).
+- **Pontuação (D5, D6):** +1 por acertar a sorte exata, +1 ao último sobrevivente, e no teto de **12 ciclos** +1 a cada jogador ativo mais próximo da sorte (empatados pontuam todos).
+- **Entre rodadas (D2, D3, D4, D8):** nova casa da sorte; todos voltam à casa 0 (eliminados voltam); mão de cartas mantida, sem nova mão inicial; o primeiro jogador rotaciona.
+- **Intermissão:** 3–5 s (padrão 4 s), botão "próxima rodada" liberado após 1 s; mostra quem pontuou, o motivo e o placar.
+- **Empate em PointsToWin (D7):** se vários chegam ao topo com o mesmo placar, rodada de desempate só entre eles (repete enquanto empatar).
+- **Jogar novamente:** cria uma partida nova (placar zerado).
+- **Proposto (R4):** +1 carta de consolo ao último colocado na intermissão (anti-snowball).
 
 **Exemplo:** Lucky Number 25, Unlucky Number 13, jogador na casa 12, dados 1 e 5. Escolher 1 significa terminar em 13 e ser eliminado; escolher 5 leva à casa 17.
 
@@ -166,7 +178,9 @@ Inspirar-se em impressos do Jogo do Bicho e loterias ilustradas **não** implica
 | Cusco | Peru | José Sabogal | Pedra, telhados, montanhas e padrões andinos | Caminhos dos Andes: rotas alteradas |
 | Buenos Aires | Argentina | Benito Quinquela Martín | La Boca, porto, fachadas vivas | Maré da Sorte: casas móveis |
 
-**Jam:** construir **somente um** tabuleiro, preferencialmente Fortaleza, sujeito à aprovação da equipe. As associações entre eventos e artistas são criações do jogo, não descrições literais de suas obras.
+**Decisão 2026-11-11:** o diorama original (casas coloridas, praça, mercado) passou a ser **Oaxaca**; Fortaleza ganhou um tabuleiro próprio na orla. A escolha de tabuleiro é só visual (ambiente, formato do circuito, luz); regras, 31 casas lógicas e cartas são idênticas. Adereços brasileiros (jangada, cajueiro, carnaúba, coluna do relógio, bandeirinhas) ficam só em Fortaleza; Oaxaca usa papel picado, jacarandá, cactos-órgão, agave, fonte de cantera verde, talavera e barro negro. O marco da orla é uma homenagem genérica (arco de bronze em pedestal), não réplica de obra existente. Salvador segue "em breve".
+
+**Jam (histórico):** construir **somente um** tabuleiro, preferencialmente Fortaleza, sujeito à aprovação da equipe. As associações entre eventos e artistas são criações do jogo, não descrições literais de suas obras.
 
 ## 8. Áudio
 

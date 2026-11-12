@@ -42,6 +42,7 @@ namespace DontTrustYourLuck.Domain.Match
     {
         internal readonly List<PlayerState> PlayerList = new List<PlayerState>();
         internal readonly List<int> WinnerList = new List<int>();
+        internal readonly List<int> TurnOrderList = new List<int>();
 
         public MatchPhase Phase { get; internal set; } = MatchPhase.NotStarted;
         /// <summary>1-based round number; 0 before the match starts.</summary>
@@ -58,8 +59,10 @@ namespace DontTrustYourLuck.Domain.Match
         public DiceRoll CurrentRoll { get; internal set; }
         public MatchEndReason EndReason { get; internal set; } = MatchEndReason.None;
 
-        /// <summary>Players in turn order (ascending Id).</summary>
+        /// <summary>Players by ascending Id (also the turn order unless a <see cref="RoundSetup"/> rotated it).</summary>
         public IReadOnlyList<PlayerState> Players => PlayerList;
+        /// <summary>Player ids in turn order for every cycle (ascending id, rotated to the first player).</summary>
+        public IReadOnlyList<int> TurnOrder => TurnOrderList;
         /// <summary>Winner ids (several only on a RoundLimit tie). Empty until the match finishes.</summary>
         public IReadOnlyList<int> WinnerIds => WinnerList;
 

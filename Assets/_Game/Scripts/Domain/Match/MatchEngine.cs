@@ -55,6 +55,10 @@ namespace DontTrustYourLuck.Domain.Match
     ///   resolution) -> next turn/round
     ///   -> round limit (MaxRounds; highest-position active players win, ties share).
     /// Card moves (Swap, Retreat) never resolve lucky/unlucky tiles.
+    ///
+    /// Series (R1): one engine is one round of a series. An optional <see cref="RoundSetup"/> rotates the turn
+    /// order and gives carried-over hands instead of random starting hands (no card randomness consumed then).
+    /// "Round" in this class (RoundNumber, MaxRounds) is the turn cycle; the name is kept for compatibility.
     /// </summary>
     public sealed class MatchEngine
     {
@@ -66,8 +70,9 @@ namespace DontTrustYourLuck.Domain.Match
         private readonly MatchState _state = new MatchState();
         private readonly CardSetup _cards;
         private readonly CardEffectResolver _cardResolver;
-        /// <summary>Turn order of the current round (ascending id, rotated when RotateFirstPlayer is on).</summary>
-        private readonly List<int> _roundOrder = new List<int>();
+        /// <summary>Base turn order of this match: ascending id, starting at <see cref="RoundSetup.FirstPlayerId"/>
+        /// when given. Each cycle's order (<see cref="MatchState.TurnOrder"/>) rotates it when RotateFirstPlayer is on.</summary>
+        private readonly List<int> _baseOrder = new List<int>();
 
         public MatchState State => _state;
         public MatchRulesConfig Rules => _rules;
@@ -100,10 +105,12 @@ namespace DontTrustYourLuck.Domain.Match
         }
 
         /// <summary>
-        /// Starts the match. Turn order is ascending player id (decision D13); with
-        /// <see cref="MatchRulesConfig.RotateFirstPlayer"/> the starting seat moves one id forward each round.
+        /// Starts the match. Turn order is ascending player id (decision D13), optionally starting at
+        /// <see cref="RoundSetup.FirstPlayerId"/> (series rounds); with <see cref="MatchRulesConfig.RotateFirstPlayer"/>
+        /// the starting seat also moves one id forward each cycle. <paramref name="setup"/> = null keeps the
+        /// single-match behavior.
         /// </summary>
-        public CommandResult StartMatch(IReadOnlyList<int> playerIds)
+        public CommandResult StartMatch(IReadOnlyList<int> playerIds, RoundSetup setup = null)
         {
             if (_state.Phase == MatchPhase.Finished) return CommandResult.Fail(CommandError.MatchFinished);
             if (_state.Phase != MatchPhase.NotStarted) return CommandResult.Fail(CommandError.WrongPhase);
@@ -118,17 +125,60 @@ namespace DontTrustYourLuck.Domain.Match
                 if (ids[i] == ids[i - 1]) return CommandResult.Fail(CommandError.DuplicatePlayerId);
             }
 
+            var setupError = ValidateSetup(setup, ids);
+            if (setupError != CommandError.None) return CommandResult.Fail(setupError);
+
             var events = new List<MatchEvent>();
             int handCapacity = CardsEnabled ? _rules.MaxHandSize : 0;
             foreach (int id in ids) _state.PlayerList.Add(new PlayerState(id, handCapacity));
 
+            int firstIndex = setup != null && setup.FirstPlayerId != 0 ? ids.IndexOf(setup.FirstPlayerId) : 0;
+            for (int i = 0; i < ids.Count; i++) _baseOrder.Add(ids[(firstIndex + i) % ids.Count]);
+
             _state.LuckyNumber = _luck.DrawLuckyNumber();
             events.Add(new MatchStartedEvent(_state.LuckyNumber, ids.AsReadOnly()));
 
-            if (CardsEnabled) DealStartingHands(events);
+            if (CardsEnabled)
+            {
+                if (setup?.StartingHands != null) GiveCarriedHands(setup.StartingHands, events);
+                else DealStartingHands(events);
+            }
 
             BeginRound(1, events);
             return CommandResult.Ok(events);
+        }
+
+        /// <summary>Validates a <see cref="RoundSetup"/> before any state change (rejections never mutate).</summary>
+        private CommandError ValidateSetup(RoundSetup setup, List<int> sortedIds)
+        {
+            if (setup == null) return CommandError.None;
+            if (setup.FirstPlayerId != 0 && !sortedIds.Contains(setup.FirstPlayerId)) return CommandError.InvalidPlayerId;
+            if (setup.StartingHands == null) return CommandError.None;
+            if (!CardsEnabled) return CommandError.CardsDisabled;
+            foreach (var pair in setup.StartingHands)
+            {
+                if (!sortedIds.Contains(pair.Key)) return CommandError.InvalidPlayerId;
+                if (pair.Value == null) continue;
+                if (pair.Value.Count > _rules.MaxHandSize) return CommandError.HandFull;
+                foreach (string cardId in pair.Value)
+                {
+                    if (_cards.Catalog.Find(cardId) == null) return CommandError.UnknownCard;
+                }
+            }
+            return CommandError.None;
+        }
+
+        /// <summary>Gives each player the cards carried over from the previous round (no randomness consumed).</summary>
+        private void GiveCarriedHands(IReadOnlyDictionary<int, IReadOnlyList<string>> hands, List<MatchEvent> events)
+        {
+            foreach (var player in _state.PlayerList) // ascending id order: deterministic instance ids
+            {
+                if (!hands.TryGetValue(player.Id, out var cardIds) || cardIds == null) continue;
+                foreach (string cardId in cardIds)
+                {
+                    AddCard(player, _cards.Catalog.Find(cardId), CardDrawSource.CarriedOver, events);
+                }
+            }
         }
 
         public CommandResult RollDice(int playerId)
@@ -357,10 +407,10 @@ namespace DontTrustYourLuck.Domain.Match
                         AddCard(player, _cards.Catalog.Definitions[_cards.Random.NextInt(0, _cards.Catalog.Count)], CardDrawSource.Granted, events);
             }
 
-            _roundOrder.Clear();
-            int count = _state.PlayerList.Count;
+            _state.TurnOrderList.Clear();
+            int count = _baseOrder.Count;
             int offset = _rules.RotateFirstPlayer ? (roundNumber - 1) % count : 0;
-            for (int i = 0; i < count; i++) _roundOrder.Add(_state.PlayerList[(offset + i) % count].Id);
+            for (int i = 0; i < count; i++) _state.TurnOrderList.Add(_baseOrder[(offset + i) % count]);
             StartTurn(NextActivePlayerIdAfter(-1), events);
         }
 
@@ -443,20 +493,21 @@ namespace DontTrustYourLuck.Domain.Match
 
         private int FirstActivePlayerId()
         {
-            foreach (var p in _state.PlayerList)
+            foreach (int id in _state.TurnOrderList)
             {
-                if (p.IsActive) return p.Id;
+                if (_state.GetPlayer(id).IsActive) return id;
             }
             return -1;
         }
 
-        /// <summary>Next active player in this round's order after <paramref name="playerId"/> (-1: from the start).</summary>
+        /// <summary>Next active player after <paramref name="playerId"/> in this cycle's turn order (-1: from the
+        /// start); -1 at the end of the cycle.</summary>
         private int NextActivePlayerIdAfter(int playerId)
         {
-            for (int i = _roundOrder.IndexOf(playerId) + 1; i < _roundOrder.Count; i++)
+            var order = _state.TurnOrderList;
+            for (int i = order.IndexOf(playerId) + 1; i < order.Count; i++)
             {
-                var p = _state.GetPlayer(_roundOrder[i]);
-                if (p.IsActive) return p.Id;
+                if (_state.GetPlayer(order[i]).IsActive) return order[i];
             }
             return -1;
         }
