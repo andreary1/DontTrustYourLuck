@@ -34,6 +34,8 @@ namespace DontTrustYourLuck.Presentation.UI
         public string players = "Players: {0}";
         public string modeBots = "Mode: You vs Bots";
         public string modeLocal = "Mode: Local Hot-Seat";
+        public string gameQuick = "Quick Match";
+        public string gameSeries = "Series: first to {0}";
         public string noCharacters = "No animals available";
         public string back = "Back";
         public string chooseBoard = "Choose Board";
@@ -103,15 +105,22 @@ namespace DontTrustYourLuck.Presentation.UI
         private Action<IReadOnlyList<ParticipantConfig>> _confirm;
         private Action _cancel;
         private GameObject _characterPage, _boardPage;
-        private Text _countLabel, _modeLabel;
+        private Text _countLabel, _modeLabel, _gameLabel;
         private Button _nextButton;
         private int _selected, _count = 4;
         private bool _local;
+        private int _seriesPoints; // 0 = quick match (single round)
+
+        /// <summary>Series options offered by the game-type button, after the quick match.</summary>
+        public static readonly int[] SeriesOptions = { 3, 5, 7 };
 
         public bool IsBoardSelection => _boardPage != null && _boardPage.activeSelf;
         public int SelectedCharacter => _selected;
         public int PlayerCount => _count;
         public bool AllLocal => _local;
+        /// <summary>Points to win the series, or 0 for a quick (single-round) match.</summary>
+        public int SeriesPoints => _seriesPoints;
+        public bool IsSeries => _seriesPoints > 0;
         public SetupText Text => _text;
         /// <summary>Id of the highlighted board ("oaxaca" or "fortaleza").</summary>
         public string SelectedBoard => _board;
@@ -167,6 +176,14 @@ namespace DontTrustYourLuck.Presentation.UI
         }
 
         public void ToggleMode() { _local = !_local; Refresh(); }
+
+        /// <summary>Quick match, then series to 3, 5 and 7 points, then back to quick.</summary>
+        public void CycleGameType()
+        {
+            int next = Array.IndexOf(SeriesOptions, _seriesPoints) + 1;
+            _seriesPoints = next < SeriesOptions.Length ? SeriesOptions[next] : 0;
+            Refresh();
+        }
 
         public void ShowBoards()
         {
@@ -232,6 +249,7 @@ namespace DontTrustYourLuck.Presentation.UI
             }
             if (_countLabel != null) _countLabel.text = string.Format(_text.players, _count);
             if (_modeLabel != null) _modeLabel.text = _local ? _text.modeLocal : _text.modeBots;
+            if (_gameLabel != null) _gameLabel.text = IsSeries ? string.Format(_text.gameSeries, _seriesPoints) : _text.gameQuick;
             if (_nextButton != null) _nextButton.interactable = _characters.Count >= 2;
         }
 
@@ -301,8 +319,9 @@ namespace DontTrustYourLuck.Presentation.UI
             }
             for (int i = 0; i < _characters.Count; i++) _cards.Add(CharacterCard(page, i));
 
-            WideButton(page, "PlayersButton", _skin.Button, _skin.IconDie, 280f, 470f, 250f, 52f, HudPalette.Ink, CyclePlayerCount, out _countLabel);
-            WideButton(page, "ModeButton", _skin.Button, _skin.IconStar, 560f, 470f, 290f, 52f, HudPalette.Ink, ToggleMode, out _modeLabel);
+            WideButton(page, "PlayersButton", _skin.Button, _skin.IconDie, 120f, 470f, 230f, 52f, HudPalette.Ink, CyclePlayerCount, out _countLabel);
+            WideButton(page, "ModeButton", _skin.Button, _skin.IconStar, 370f, 470f, 300f, 52f, HudPalette.Ink, ToggleMode, out _modeLabel);
+            WideButton(page, "GameTypeButton", _skin.Button, _skin.IconClock, 690f, 470f, 290f, 52f, HudPalette.Ink, CycleGameType, out _gameLabel);
 
             WideButton(page, "BackButton", _skin.Button, _skin.IconBack, 40f, 548f, 210f, 54f, HudPalette.Ink, Back, out var backLabel);
             backLabel.text = _text.back;

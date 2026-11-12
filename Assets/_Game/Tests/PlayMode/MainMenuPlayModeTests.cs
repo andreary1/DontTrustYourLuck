@@ -140,6 +140,45 @@ namespace DontTrustYourLuck.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator GameType_DefaultsToQuickMatch()
+        {
+            _director.ConfigureSeries(true); // the setup choice wins over the inspector value
+            yield return WaitIdleMenu();
+            _menu.PlayButton.onClick.Invoke();
+            var setup = _menu.Setup;
+            Assert.IsFalse(setup.IsSeries, "quick match is the default");
+            Assert.AreEqual(0, setup.SeriesPoints);
+            setup.ShowBoards();
+            setup.ConfirmBoard();
+            yield return WaitUntil(() => !_menu.IsVisible, "menu exit");
+            Assert.IsFalse(_director.Session.IsSeriesMode, "single-round match");
+            Assert.IsNull(_director.Session.SeriesState);
+        }
+
+        [UnityTest]
+        public IEnumerator GameType_Cycles_AndSeriesChoiceStartsASeries()
+        {
+            yield return WaitIdleMenu();
+            _menu.PlayButton.onClick.Invoke();
+            var setup = _menu.Setup;
+            var label = setup.transform.Find("Characters/GameTypeButton").GetComponentInChildren<Text>();
+            Assert.AreEqual(setup.Text.gameQuick, label.text);
+            int[] expected = { 3, 5, 7, 0, 3, 5 };
+            foreach (int points in expected)
+            {
+                setup.CycleGameType();
+                Assert.AreEqual(points, setup.SeriesPoints);
+                Assert.AreEqual(points > 0 ? string.Format(setup.Text.gameSeries, points) : setup.Text.gameQuick, label.text);
+            }
+            setup.ShowBoards();
+            setup.ConfirmBoard();
+            yield return WaitUntil(() => !_menu.IsVisible, "menu exit");
+            Assert.IsTrue(_director.Session.IsSeriesMode, "series chosen on the setup screen");
+            Assert.AreEqual(5, _director.Session.SeriesRules.PointsToWin);
+            Assert.AreEqual(1, _director.Session.SeriesState.RoundNumber);
+        }
+
+        [UnityTest]
         public IEnumerator Setup_UsesMenuSkin_SeatsFollowSelection_AndBackSteps()
         {
             yield return WaitIdleMenu();

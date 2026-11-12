@@ -70,8 +70,8 @@ namespace DontTrustYourLuck.Presentation.Match
         [SerializeField] private bool previewDestinations = true;
 
         [Header("Series (R1): rounds until a champion")]
-        [Tooltip("Off: legacy single-round match (one lucky hit ends the match).")]
-        [SerializeField] private bool seriesMode = true;
+        [Tooltip("Off = quick match (one round, the default); the setup screen can switch to a series.")]
+        [SerializeField] private bool seriesMode;
         [Min(1)] [SerializeField] private int pointsToWin = SeriesRules.DefaultPointsToWin;
         [Min(1)] [SerializeField] private int maxCyclesPerRound = SeriesRules.DefaultMaxCyclesPerRound;
         [Tooltip("Intermission auto-continues after this many seconds.")]
@@ -225,6 +225,14 @@ namespace DontTrustYourLuck.Presentation.Match
             maxCyclesPerRound = Mathf.Max(1, maxCycles);
         }
 
+        /// <summary>Quick match or series, as chosen on the setup screen (a series keeps the configured cycle cap).</summary>
+        private void ApplySetupGameType()
+        {
+            var setup = hud != null && hud.MainMenu != null ? hud.MainMenu.Setup : null;
+            if (setup == null) return;
+            ConfigureSeries(setup.IsSeries, setup.IsSeries ? setup.SeriesPoints : pointsToWin, maxCyclesPerRound);
+        }
+
         /// <summary>Intermission timing (tests use small values). Presentation only.</summary>
         public void SetIntermissionTimings(float total, float minimum)
         {
@@ -264,7 +272,7 @@ namespace DontTrustYourLuck.Presentation.Match
             }
             if (hud != null && hud.MainMenu != null)
             {
-                hud.MainMenu.ConfigureSetup(participants, seats => SetParticipants(seats), id => SelectBoard(id),
+                hud.MainMenu.ConfigureSetup(participants, seats => { ApplySetupGameType(); SetParticipants(seats); }, id => SelectBoard(id),
                     boardThemes != null ? boardThemes.CurrentId ?? boardThemes.DefaultTheme : null);
                 if (config != null && config.Circuit) hud.MainMenu.UseCircuitInstructions();
             }
