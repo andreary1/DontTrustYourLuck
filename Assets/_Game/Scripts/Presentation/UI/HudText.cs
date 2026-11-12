@@ -26,7 +26,7 @@ namespace DontTrustYourLuck.Presentation.UI
         public string playersTitle = "PLAYERS";
         public string messagesTitle = "LOG";
         public string gameTitle = "Don't Trust Your Luck!";
-        public string gameSubtitle = "Fortaleza";
+        public string gameSubtitle = "Oaxaca";
 
         [Header("Dice destination preview (Sprint 4)")]
         public string destinationTile = "-> {0}";

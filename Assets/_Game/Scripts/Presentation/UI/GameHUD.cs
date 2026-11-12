@@ -163,7 +163,16 @@ namespace DontTrustYourLuck.Presentation.UI
                 titleText.resizeTextForBestFit = true;
                 titleText.resizeTextMinSize = 12;
             }
-            if (subtitleText != null) subtitleText.text = text.gameSubtitle;
+            if (subtitleText != null) subtitleText.text = _subtitleOverride ?? text.gameSubtitle;
+        }
+
+        private string _subtitleOverride;
+
+        /// <summary>City name under the title plaque (follows the chosen board).</summary>
+        public void SetSubtitle(string value)
+        {
+            _subtitleOverride = string.IsNullOrEmpty(value) ? null : value;
+            if (subtitleText != null) subtitleText.text = _subtitleOverride ?? text.gameSubtitle;
         }
 
         private void OnCardClicked(int slot) => CardSlotClicked?.Invoke(slot);

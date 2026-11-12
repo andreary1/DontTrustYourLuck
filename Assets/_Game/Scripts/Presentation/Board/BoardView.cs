@@ -30,6 +30,8 @@ namespace DontTrustYourLuck.Presentation.Board
         [SerializeField] private BoardTileView tilePrefab;
         [Min(2)] [SerializeField] private int tileCount = 31;
         [SerializeField] private ZigzagBoardLayout layout = new ZigzagBoardLayout();
+        [Tooltip("Loop outline in circuit mode (per city; BoardThemeSwitcher sets it).")]
+        [SerializeField] private CircuitShape circuitShape = CircuitShape.Plaza;
         [SerializeField] private BoardTileMaterials materials = new BoardTileMaterials();
         [Tooltip("Distance from the anchor when several pieces share a tile.")]
         [Min(0f)] [SerializeField] private float pieceSlotRadius = 0.24f;
@@ -53,10 +55,28 @@ namespace DontTrustYourLuck.Presentation.Board
             if (_circuit == value) return;
             _circuit = value;
             EnsureBuilt(tileCount);
-            if (!value) return;
+            if (value) LayoutCircuit();
+        }
+
+        /// <summary>Loop outline used in circuit mode (per city). Re-lays the tiles at once when the circuit is active.</summary>
+        public CircuitShape Shape => circuitShape;
+
+        public void SetCircuitShape(CircuitShape shape)
+        {
+            if (circuitShape == shape) return;
+            circuitShape = shape;
+            if (_circuit) LayoutCircuit();
+        }
+
+        private void LayoutCircuit()
+        {
             // Reuse the authored tiles/materials. The start is a spur; 1..30 form the closed perimeter.
             for (int i = 0; i < tiles.Count; i++)
-                tiles[i].transform.localPosition = CircuitPosition(i, tiles.Count - 1);
+            {
+                var pose = CircuitPose(i, tiles.Count - 1, circuitShape);
+                tiles[i].transform.localPosition = pose.position;
+                tiles[i].transform.localRotation = pose.rotation;
+            }
             foreach (var connector in connectors) if (connector != null) DestroySafe(connector);
             connectors.Clear();
             for (int i = 1; i < tiles.Count; i++)
@@ -65,7 +85,14 @@ namespace DontTrustYourLuck.Presentation.Board
             ApplyHighlights();
         }
 
-        public static Vector3 CircuitPosition(int index, int length)
+        /// <summary>Plaza (rectangle) circuit position, kept for callers that predate the city shapes.</summary>
+        public static Vector3 CircuitPosition(int index, int length) => CircuitPose(index, length, CircuitShape.Plaza).position;
+
+        /// <summary>Local tile pose of a circuit: index 0 is the start spur, 1..length run around the loop.</summary>
+        public static Pose CircuitPose(int index, int length, CircuitShape shape) =>
+            shape == CircuitShape.Bay ? BayCircuit.Pose(index, length) : new Pose(PlazaPosition(index, length), Quaternion.identity);
+
+        private static Vector3 PlazaPosition(int index, int length)
         {
             // Equal arc spacing on a rectangular plaza; default 30 = 10 + 5 + 10 + 5 edges.
             float distance = (index == 0 ? 0 : index - 1) * 30f / length;

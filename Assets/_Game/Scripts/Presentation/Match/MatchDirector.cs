@@ -33,6 +33,8 @@ namespace DontTrustYourLuck.Presentation.Match
         [SerializeField] private Transform piecesRoot;
         [Tooltip("Pieces already in the scene, reused before instantiating the prefab.")]
         [SerializeField] private List<PlayerPieceView> scenePieces = new List<PlayerPieceView>();
+        [Tooltip("City boards (environment, circuit outline, lighting) picked in the setup screen. Optional.")]
+        [SerializeField] private BoardThemeSwitcher boardThemes;
 
         [Header("Participants (count must respect MatchRulesConfig)")]
         [SerializeField] private List<ParticipantConfig> participants = new List<ParticipantConfig>
@@ -145,6 +147,21 @@ namespace DontTrustYourLuck.Presentation.Match
             piecePrefab = prefab; piecesRoot = root; scenePieces = existingPieces ?? new List<PlayerPieceView>();
         }
 
+        public BoardThemeSwitcher BoardThemes => boardThemes;
+        public void SetBoardThemes(BoardThemeSwitcher themes) => boardThemes = themes;
+
+        /// <summary>
+        /// Shows another city board (presentation only: the rules are identical). Pieces are re-placed on the new
+        /// outline and the HUD subtitle follows. Returns false for an unknown id.
+        /// </summary>
+        public bool SelectBoard(string themeId)
+        {
+            if (boardThemes == null || !boardThemes.Apply(themeId)) return false;
+            board.PlacePieces(_activePieces.Count > 0 ? _activePieces : scenePieces);
+            if (hud != null && boardThemes.Current != null) hud.SetSubtitle(boardThemes.Current.displayName);
+            return true;
+        }
+
         /// <summary>Editor/builder setup of the seats (names, colors, bot flags, animals). Takes effect on the next match.</summary>
         public void SetParticipants(IEnumerable<ParticipantConfig> seats)
         {
@@ -189,9 +206,15 @@ namespace DontTrustYourLuck.Presentation.Match
         {
             if (board != null && config != null) board.SetCircuit(config.Circuit);
             if (cameraRig != null) cameraRig.Configure(board, 38f);
+            if (boardThemes != null && hud != null)
+            {
+                boardThemes.Reapply(); // the theme owns the camera pitch set just above
+                if (boardThemes.Current != null) hud.SetSubtitle(boardThemes.Current.displayName);
+            }
             if (hud != null && hud.MainMenu != null)
             {
-                hud.MainMenu.ConfigureSetup(participants, seats => SetParticipants(seats));
+                hud.MainMenu.ConfigureSetup(participants, seats => SetParticipants(seats), id => SelectBoard(id),
+                    boardThemes != null ? boardThemes.CurrentId ?? boardThemes.DefaultTheme : null);
                 if (config != null && config.Circuit) hud.MainMenu.UseCircuitInstructions();
             }
             if (hud != null)

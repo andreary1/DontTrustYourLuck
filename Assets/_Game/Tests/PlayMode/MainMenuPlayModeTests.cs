@@ -85,7 +85,7 @@ namespace DontTrustYourLuck.Tests.PlayMode
             _menu.Setup.SelectCharacter(2);
             _menu.Setup.ShowBoards();
             Assert.IsTrue(_menu.Setup.IsBoardSelection);
-            _menu.Setup.ConfirmFortaleza();
+            _menu.Setup.ConfirmBoard();
             Assert.IsNull(_director.Session, "match starts after the exit animation");
             yield return WaitUntil(() => !_menu.IsVisible, "menu exit");
             Assert.IsNotNull(_director.Session, "Play started a match");
@@ -94,6 +94,48 @@ namespace DontTrustYourLuck.Tests.PlayMode
             Assert.AreEqual(1f, topBar.alpha, 1e-3f);
             Assert.IsTrue(topBar.blocksRaycasts, "HUD is clickable again");
             Assert.AreEqual(31, _director.Board.TileCount);
+        }
+
+        [UnityTest]
+        public IEnumerator BoardChoice_Fortaleza_SwapsDiorama_Circuit_AndSubtitle()
+        {
+            var themes = _director.BoardThemes;
+            Assert.IsNotNull(themes, "GameBoard has the city board switcher (run Rebuild City Boards)");
+            var oaxaca = themes.Find("oaxaca");
+            var fortaleza = themes.Find("fortaleza");
+            Assert.IsNotNull(oaxaca); Assert.IsNotNull(fortaleza);
+            Assert.AreEqual("oaxaca", themes.CurrentId, "Oaxaca is the default board");
+            Assert.IsTrue(oaxaca.environment.activeSelf);
+            Assert.IsFalse(fortaleza.environment.activeSelf, "only one diorama renders at a time");
+
+            yield return WaitIdleMenu();
+            _menu.PlayButton.onClick.Invoke();
+            var setup = _menu.Setup;
+            setup.ShowBoards();
+            Assert.AreEqual("oaxaca", setup.SelectedBoard);
+            setup.SelectBoard("fortaleza");
+            Assert.AreEqual("fortaleza", themes.CurrentId, "selection previews the board behind the modal");
+            Assert.IsTrue(fortaleza.environment.activeSelf);
+            Assert.IsFalse(oaxaca.environment.activeSelf);
+            Assert.AreEqual(DontTrustYourLuck.Presentation.Board.CircuitShape.Bay, _director.Board.Shape);
+            setup.SelectBoard("salvador"); // locked board: ignored
+            Assert.AreEqual("fortaleza", setup.SelectedBoard);
+
+            setup.ConfirmBoard();
+            yield return WaitUntil(() => !_menu.IsVisible, "menu exit");
+            Assert.IsNotNull(_director.Session, "match started on Fortaleza");
+            yield return null; // deferred Destroy of the previous outline's connectors
+            int connectors = 0;
+            foreach (Transform child in _director.Board.transform)
+                if (child.name.StartsWith("Connector_")) connectors++;
+            Assert.AreEqual(31, connectors, "one connector per circuit edge, none left from the plaza outline");
+            var tile12 = _director.Board.GetTile(12).transform.localPosition;
+            Assert.AreEqual(DontTrustYourLuck.Presentation.Board.BoardView.CircuitPose(12, 30, DontTrustYourLuck.Presentation.Board.CircuitShape.Bay).position, tile12);
+            var subtitle = _director.Hud.GetComponentsInChildren<Text>(true).FirstOrDefault(t => t.text == "Fortaleza");
+            Assert.IsNotNull(subtitle, "HUD subtitle names the chosen city");
+            foreach (var piece in _director.ActivePieces)
+                Assert.Less(Vector3.Distance(piece.transform.position, _director.Board.GetTileAnchor(piece.LogicalPosition).position), 1f,
+                    $"{piece.name} stands on its tile of the new outline");
         }
 
         [UnityTest]
@@ -181,7 +223,7 @@ namespace DontTrustYourLuck.Tests.PlayMode
 
             _menu.PlayButton.onClick.Invoke();
             _menu.Setup.ShowBoards();
-            _menu.Setup.ConfirmFortaleza();
+            _menu.Setup.ConfirmBoard();
             yield return WaitUntil(() => !_menu.IsVisible, "menu exit");
             Assert.IsFalse(_director.Session.State.IsFinished, "a fresh match started");
             Assert.IsFalse(result.IsVisible, "result screen closed by the new match");

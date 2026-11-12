@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DontTrustYourLuck.Presentation.Board;
 using DontTrustYourLuck.Presentation.Characters;
 using DontTrustYourLuck.Presentation.Match;
 using UnityEngine;
@@ -25,7 +26,7 @@ namespace DontTrustYourLuck.Presentation.UI
     public sealed class SetupText
     {
         public string characterTitle = "CHOOSE YOUR ANIMAL";
-        public string characterSubtitle = "Pick your lottery card for a game of luck through the streets of Fortaleza.";
+        public string characterSubtitle = "Pick your lottery card for a game of luck through the streets of Latin America.";
         public string you = "YOU";
         public string bot = "BOT";
         public string playerTag = "P{0}";
@@ -40,14 +41,15 @@ namespace DontTrustYourLuck.Presentation.UI
         public string boardSubtitle = "One city, many laps. Stop exactly on your lucky number to win.";
         public string selected = "SELECTED";
         public string comingSoon = "COMING SOON";
+        public string oaxaca = "OAXACA";
+        public string oaxacaRegion = "Oaxaca, Mexico";
+        public string oaxacaInfo = "A colorful market plaza with a 30-tile square circuit, action cards and debuffs.";
         public string fortaleza = "FORTALEZA";
         public string fortalezaRegion = "Ceará, Brazil";
-        public string fortalezaInfo = "A tropical plaza with a 30-tile circuit, action cards and debuffs.";
-        public string fortalezaStats = "2-4 players\n10-20 minutes";
+        public string fortalezaInfo = "A seaside promenade at sunset with a 30-tile bay-shaped circuit, action cards and debuffs.";
+        public string boardStats = "2-4 players\n10-20 minutes";
         public string salvador = "SALVADOR";
         public string salvadorRegion = "Bahia, Brazil";
-        public string oaxaca = "OAXACA";
-        public string oaxacaRegion = "Mexico";
         public string play = "Play";
     }
 
@@ -64,9 +66,22 @@ namespace DontTrustYourLuck.Presentation.UI
         private static readonly Color Dim = new Color(0.10f, 0.06f, 0.04f, 0.55f);
         private static readonly Color Plaza = new Color(0.56f, 0.43f, 0.31f);
         private static readonly Color PlazaEdge = new Color(0.36f, 0.26f, 0.18f);
+        private static readonly Color Calcadao = new Color(0.86f, 0.80f, 0.68f);
+        private static readonly Color Sand = new Color(0.92f, 0.82f, 0.60f);
+        private static readonly Color Sea = new Color(0.25f, 0.52f, 0.66f);
         private static readonly Color Locked = new Color(0.62f, 0.58f, 0.54f);
         private static readonly Color Unseated = new Color(0.72f, 0.68f, 0.63f);
         private static readonly Color TitleInk = new Color(0.55f, 0.13f, 0.10f);
+
+        public const string OaxacaId = "oaxaca";
+        public const string FortalezaId = "fortaleza";
+
+        private sealed class BoardWidget
+        {
+            public string Id;
+            public Image Glow;
+            public GameObject Ribbon;
+        }
 
         private sealed class CardWidget
         {
@@ -79,6 +94,10 @@ namespace DontTrustYourLuck.Presentation.UI
         private readonly SetupText _text = new SetupText();
         private readonly List<CharacterDefinitionAsset> _characters = new List<CharacterDefinitionAsset>();
         private readonly List<CardWidget> _cards = new List<CardWidget>();
+        private readonly List<BoardWidget> _boards = new List<BoardWidget>();
+        private Action<string> _boardSelected;
+        private string _board = OaxacaId;
+        private Text _boardInfo;
         private MenuSkin _skin = new MenuSkin();
         private Font _font;
         private Action<IReadOnlyList<ParticipantConfig>> _confirm;
@@ -94,11 +113,14 @@ namespace DontTrustYourLuck.Presentation.UI
         public int PlayerCount => _count;
         public bool AllLocal => _local;
         public SetupText Text => _text;
+        /// <summary>Id of the highlighted board ("oaxaca" or "fortaleza").</summary>
+        public string SelectedBoard => _board;
 
         public void Configure(IEnumerable<ParticipantConfig> seats, Action<IReadOnlyList<ParticipantConfig>> confirm, Action cancel,
-            MenuSkin skin = null)
+            MenuSkin skin = null, Action<string> boardSelected = null, string initialBoard = null)
         {
-            _confirm = confirm; _cancel = cancel;
+            _confirm = confirm; _cancel = cancel; _boardSelected = boardSelected;
+            if (initialBoard == FortalezaId || initialBoard == OaxacaId) _board = initialBoard;
             _skin = skin ?? new MenuSkin();
             _font = _skin.Font != null ? _skin.Font : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             foreach (var seat in seats)
@@ -150,6 +172,7 @@ namespace DontTrustYourLuck.Presentation.UI
         {
             if (_characters.Count < 2) return;
             _characterPage.SetActive(false); _boardPage.SetActive(true);
+            RefreshBoards();
         }
 
         public void Back()
@@ -158,9 +181,20 @@ namespace DontTrustYourLuck.Presentation.UI
             else { gameObject.SetActive(false); _cancel?.Invoke(); }
         }
 
-        public void ConfirmFortaleza()
+        /// <summary>Highlights a board and previews it behind the modal. Unknown ids are ignored.</summary>
+        public void SelectBoard(string id)
+        {
+            if (id != OaxacaId && id != FortalezaId) return;
+            _board = id;
+            RefreshBoards();
+            _boardSelected?.Invoke(id);
+        }
+
+        /// <summary>Starts the match on the selected board.</summary>
+        public void ConfirmBoard()
         {
             if (_characters.Count < 2) return;
+            _boardSelected?.Invoke(_board);
             var seats = new List<ParticipantConfig>();
             for (int i = 0; i < _count; i++)
             {
@@ -199,6 +233,17 @@ namespace DontTrustYourLuck.Presentation.UI
             if (_countLabel != null) _countLabel.text = string.Format(_text.players, _count);
             if (_modeLabel != null) _modeLabel.text = _local ? _text.modeLocal : _text.modeBots;
             if (_nextButton != null) _nextButton.interactable = _characters.Count >= 2;
+        }
+
+        private void RefreshBoards()
+        {
+            foreach (var b in _boards)
+            {
+                bool on = b.Id == _board;
+                b.Glow.enabled = on;
+                b.Ribbon.SetActive(on);
+            }
+            if (_boardInfo != null) _boardInfo.text = _board == FortalezaId ? _text.fortalezaInfo : _text.oaxacaInfo;
         }
 
         private float CardX(int i)
@@ -311,9 +356,11 @@ namespace DontTrustYourLuck.Presentation.UI
         {
             Header(page, _text.boardTitle, _text.boardSubtitle);
 
-            LockedBoard(page, _text.salvador, _text.salvadorRegion, 60f);
-            LockedBoard(page, _text.oaxaca, _text.oaxacaRegion, WindowW - 60f - 210f);
-            FeaturedBoard(page);
+            const float w = 380f, gap = 20f;
+            float x0 = (WindowW - (2f * w + 210f + 2f * gap)) / 2f;
+            BoardCard(page, OaxacaId, _text.oaxaca, _text.oaxacaRegion, CircuitShape.Plaza, x0, w);
+            BoardCard(page, FortalezaId, _text.fortaleza, _text.fortalezaRegion, CircuitShape.Bay, x0 + w + gap, w);
+            LockedBoard(page, _text.salvador, _text.salvadorRegion, x0 + 2f * (w + gap));
 
             var info = MakeImage("InfoStrip", page, _skin.Window, HudPalette.Card);
             Place(info.rectTransform, 150f, 464f, WindowW - 300f, 68f);
@@ -322,47 +369,62 @@ namespace DontTrustYourLuck.Presentation.UI
             var sun = MakeImage("Icon", badge.transform, _skin.IconSun, Color.white);
             sun.preserveAspect = true;
             Inset(sun.rectTransform, 8f, 8f);
-            var description = MakeText("Description", info.transform, _text.fortalezaInfo, 18, HudPalette.Ink, TextAnchor.MiddleLeft, FontStyle.Normal);
-            Place(description.rectTransform, 80f, 8f, 480f, 56f);
+            _boardInfo = MakeText("Description", info.transform, _text.oaxacaInfo, 18, HudPalette.Ink, TextAnchor.MiddleLeft, FontStyle.Normal);
+            Place(_boardInfo.rectTransform, 80f, 8f, 480f, 56f);
             var rule = MakeImage("Divider", info.transform, null, HudPalette.InkFaded);
             Place(rule.rectTransform, 574f, 14f, 2f, 44f);
-            var stats = MakeText("Stats", info.transform, _text.fortalezaStats, 17, HudPalette.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
+            var stats = MakeText("Stats", info.transform, _text.boardStats, 17, HudPalette.Ink, TextAnchor.MiddleLeft, FontStyle.Bold);
             Place(stats.rectTransform, 592f, 8f, 200f - 16f, 56f);
 
             WideButton(page, "BackButton", _skin.Button, _skin.IconBack, 40f, 548f, 210f, 54f, HudPalette.Ink, Back, out var backLabel);
             backLabel.text = _text.back;
-            WideButton(page, "PlayButton", _skin.Primary, _skin.IconPlay, WindowW - 290f, 544f, 250f, 60f, Color.white, ConfirmFortaleza, out var playLabel);
+            WideButton(page, "PlayButton", _skin.Primary, _skin.IconPlay, WindowW - 290f, 544f, 250f, 60f, Color.white, ConfirmBoard, out var playLabel);
             playLabel.text = _text.play;
             playLabel.fontSize = 26;
             LightLabel(playLabel);
+            RefreshBoards();
         }
 
-        private void FeaturedBoard(Transform page)
+        private void BoardCard(Transform page, string id, string city, string region, CircuitShape shape, float x, float w)
         {
-            const float w = 500f, h = 320f, top = 134f;
-            var glow = MakeImage("FortalezaGlow", page, null, HudPalette.Lucky);
-            Place(glow.rectTransform, (WindowW - w) / 2f - 7f, top - 7f, w + 14f, h + 14f);
-            var card = MakeImage("Fortaleza", page, _skin.Window, HudPalette.Card);
-            Place(card.rectTransform, (WindowW - w) / 2f, top, w, h);
+            const float h = 310f, top = 136f;
+            var glow = MakeImage(city + "Glow", page, null, HudPalette.Lucky);
+            Place(glow.rectTransform, x - 7f, top - 7f, w + 14f, h + 14f);
+            var card = MakeImage(city, page, _skin.Window, HudPalette.Card);
+            card.raycastTarget = true;
+            Place(card.rectTransform, x, top, w, h);
+            var button = card.gameObject.AddComponent<Button>();
+            button.targetGraphic = card;
+            SetButtonColors(button);
+            button.onClick.AddListener(() => SelectBoard(id));
 
-            var plaza = MakeImage("Preview", card.transform, null, PlazaEdge);
-            Place(plaza.rectTransform, 20f, 20f, w - 40f, 206f);
-            var inner = MakeImage("Plaza", plaza.transform, null, Plaza);
+            bool bay = shape == CircuitShape.Bay;
+            var preview = MakeImage("Preview", card.transform, null, PlazaEdge);
+            Place(preview.rectTransform, 18f, 18f, w - 36f, 196f);
+            var inner = MakeImage("Ground", preview.transform, null, bay ? Calcadao : Plaza);
             Inset(inner.rectTransform, 3f, 3f);
-            if (_skin.Tile != null)
+            if (bay)
+            {
+                // Sea and sand behind the promenade, matching the board's bay side.
+                var sea = MakeImage("Sea", inner.transform, null, Sea);
+                Anchor(sea.rectTransform, new Vector2(0f, 0.86f), Vector2.one, Vector2.zero, Vector2.zero);
+                var sand = MakeImage("Sand", inner.transform, null, Sand);
+                Anchor(sand.rectTransform, new Vector2(0f, 0.78f), new Vector2(1f, 0.86f), Vector2.zero, Vector2.zero);
+            }
+            else if (_skin.Tile != null)
             {
                 var tiles = MakeImage("Azulejo", inner.transform, _skin.Tile, new Color(1f, 1f, 1f, 0.18f));
                 tiles.type = Image.Type.Tiled;
                 Inset(tiles.rectTransform, 0f, 0f);
             }
-            MiniCircuit(inner.rectTransform, w - 46f, 200f);
+            MiniCircuit(inner.rectTransform, w - 42f, 190f, shape);
 
             var plaque = MakeImage("NamePlaque", card.transform, _skin.Plaque, HudPalette.Cream);
-            Place(plaque.rectTransform, 90f, 228f, w - 180f, 54f);
-            var name = MakeText("Name", plaque.transform, _text.fortaleza, 26, TitleInk, TextAnchor.MiddleCenter, FontStyle.Bold);
+            Place(plaque.rectTransform, 60f, 220f, w - 120f, 50f);
+            var name = MakeText("Name", plaque.transform, city, 25, TitleInk, TextAnchor.MiddleCenter, FontStyle.Bold);
             Inset(name.rectTransform, 10f, 4f);
-            var region = MakeText("Region", card.transform, _text.fortalezaRegion, 16, HudPalette.Ink, TextAnchor.MiddleCenter, FontStyle.Italic);
-            Place(region.rectTransform, 20f, 283f, w - 40f, 22f);
+            var where = MakeText("Region", card.transform, region, 16, HudPalette.Ink, TextAnchor.MiddleCenter, FontStyle.Italic);
+            Place(where.rectTransform, 20f, 274f, w - 40f, 22f);
 
             var ribbon = MakeImage("SelectedRibbon", card.transform, _skin.Primary, HudPalette.Danger);
             Place(ribbon.rectTransform, -16f, -12f, 180f, 38f);
@@ -372,44 +434,47 @@ namespace DontTrustYourLuck.Presentation.UI
             var label = MakeText("Label", ribbon.transform, _text.selected, 17, Color.white, TextAnchor.MiddleCenter, FontStyle.Bold);
             Anchor(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(36f, 3f), new Vector2(-8f, -3f));
             LightLabel(label);
+
+            _boards.Add(new BoardWidget { Id = id, Glow = glow, Ribbon = ribbon.gameObject });
         }
 
-        /// <summary>A loop of numbered tiles evenly spaced (by arc length) on an ellipse: the board's circuit at a glance.</summary>
-        private void MiniCircuit(RectTransform area, float w, float h)
+        /// <summary>The board's real circuit outline (same poses as the 3D tiles), scaled into the preview.</summary>
+        private void MiniCircuit(RectTransform area, float w, float h, CircuitShape shape)
         {
-            float a = w / 2f - 22f, b = h / 2f - 19f;
-            const int samples = 360;
-            var points = new Vector2[samples + 1];
-            var length = new float[samples + 1];
-            for (int i = 0; i <= samples; i++)
-            {
-                float t = Mathf.PI / 2f - i * 2f * Mathf.PI / samples; // starts at the top, runs clockwise
-                points[i] = new Vector2(Mathf.Cos(t) * a, Mathf.Sin(t) * b);
-                if (i > 0) length[i] = length[i - 1] + Vector2.Distance(points[i - 1], points[i]);
-            }
-            var colors = new[] { HudPalette.Card, HudPalette.Pink, HudPalette.Blue, HudPalette.Lucky, HudPalette.Green };
-            int k = 0;
+            var points = new Vector2[CircuitTiles];
+            var min = new Vector2(float.MaxValue, float.MaxValue);
+            var max = new Vector2(float.MinValue, float.MinValue);
             for (int tile = 0; tile < CircuitTiles; tile++)
             {
-                float target = length[samples] * tile / CircuitTiles;
-                while (k < samples && length[k + 1] < target) k++;
-                var p = points[k];
+                var p = BoardView.CircuitPose(tile + 1, CircuitTiles, shape).position;
+                points[tile] = new Vector2(p.x, p.z);
+                min = Vector2.Min(min, points[tile]);
+                max = Vector2.Max(max, points[tile]);
+            }
+            const float tileSize = 22f;
+            var size = max - min;
+            float scale = Mathf.Min((w - tileSize - 12f) / Mathf.Max(0.01f, size.x), (h - tileSize - 12f) / Mathf.Max(0.01f, size.y));
+            var mid = (min + max) * 0.5f;
+
+            var colors = new[] { HudPalette.Card, HudPalette.Pink, HudPalette.Blue, HudPalette.Lucky, HudPalette.Green };
+            for (int tile = 0; tile < CircuitTiles; tile++)
+            {
                 var outline = MakeImage($"Tile{tile + 1}", area, null, HudPalette.Ink);
                 var rt = outline.rectTransform;
                 rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.sizeDelta = new Vector2(27f, 27f);
-                rt.anchoredPosition = p;
+                rt.sizeDelta = new Vector2(tileSize, tileSize);
+                rt.anchoredPosition = (points[tile] - mid) * scale;
                 var face = MakeImage("Face", rt, null, colors[tile % colors.Length]);
                 Inset(face.rectTransform, 2f, 2f);
-                var n = MakeText("N", rt, (tile + 1).ToString(), 14, HudPalette.Ink, TextAnchor.MiddleCenter, FontStyle.Normal);
-                n.resizeTextMinSize = 12;
+                var n = MakeText("N", rt, (tile + 1).ToString(), 13, HudPalette.Ink, TextAnchor.MiddleCenter, FontStyle.Normal);
+                n.resizeTextMinSize = 10;
                 Inset(n.rectTransform, 1f, 1f);
             }
             var center = MakeImage("Sun", area, _skin.IconSun, HudPalette.Lucky);
             center.preserveAspect = true;
             var crt = center.rectTransform;
             crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
-            crt.sizeDelta = new Vector2(64f, 64f);
+            crt.sizeDelta = new Vector2(56f, 56f);
         }
 
         private void LockedBoard(Transform page, string city, string region, float x)

@@ -25,7 +25,7 @@
 | Renderização | URP, sujeita à validação de desempenho no WebGL | Proposto |
 | Estética | 2.5D: cenário 3D pixel art + personagens 2D | Definido |
 | Cenários | Cidades latino-americanas reais, inspiradas em artistas de cada país | Definido como direção |
-| Primeiro cenário | Fortaleza, com referências a Aldemir Martins | Proposto |
+| Cenários jogáveis | **Oaxaca** (praça de mercado, circuito retangular) e **Fortaleza** (calçadão da Beira-Mar ao pôr do sol, circuito em "D") — mesmas regras nos dois | **Definido (2026-11-11)** |
 
 ## 2. Pilares de design
 
@@ -166,7 +166,9 @@ Inspirar-se em impressos do Jogo do Bicho e loterias ilustradas **não** implica
 | Cusco | Peru | José Sabogal | Pedra, telhados, montanhas e padrões andinos | Caminhos dos Andes: rotas alteradas |
 | Buenos Aires | Argentina | Benito Quinquela Martín | La Boca, porto, fachadas vivas | Maré da Sorte: casas móveis |
 
-**Jam:** construir **somente um** tabuleiro, preferencialmente Fortaleza, sujeito à aprovação da equipe. As associações entre eventos e artistas são criações do jogo, não descrições literais de suas obras.
+**Decisão 2026-11-11:** o diorama original (casas coloridas, praça, mercado) passou a ser **Oaxaca**; Fortaleza ganhou um tabuleiro próprio na orla. A escolha de tabuleiro é só visual (ambiente, formato do circuito, luz); regras, 31 casas lógicas e cartas são idênticas. Adereços brasileiros (jangada, cajueiro, carnaúba, coluna do relógio, bandeirinhas) ficam só em Fortaleza; Oaxaca usa papel picado, jacarandá, cactos-órgão, agave, fonte de cantera verde, talavera e barro negro. O marco da orla é uma homenagem genérica (arco de bronze em pedestal), não réplica de obra existente. Salvador segue "em breve".
+
+**Jam (histórico):** construir **somente um** tabuleiro, preferencialmente Fortaleza, sujeito à aprovação da equipe. As associações entre eventos e artistas são criações do jogo, não descrições literais de suas obras.
 
 ## 8. Áudio
 
