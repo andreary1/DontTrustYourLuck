@@ -261,6 +261,10 @@ namespace DontTrustYourLuck.Presentation.Match
 
         public string PlayerName(int playerId) => NameOf(playerId);
 
+        /// <summary>Cycle cap of the round being played (the series cap in series mode); 0 before any match.</summary>
+        public int MaxCyclesThisRound =>
+            _session != null && _session.Engine != null ? _session.Engine.Rules.MaxRounds : _rules != null ? _rules.MaxRounds : 0;
+
         private void Awake()
         {
             if (board != null && config != null) board.SetCircuit(config.Circuit);
@@ -288,6 +292,11 @@ namespace DontTrustYourLuck.Presentation.Match
                 hud.CardCancelRequested += OnCardCancelRequested;
                 _intermissionView = hud.Intermission;
                 _intermissionView.ContinueClicked += OnIntermissionContinue;
+
+                // Cantador narration (presentation only): created at runtime so the scene needs no regeneration.
+                var narration = GetComponent<DontTrustYourLuck.Presentation.Narration.NarrationController>();
+                if (narration == null) narration = gameObject.AddComponent<DontTrustYourLuck.Presentation.Narration.NarrationController>();
+                narration.Configure(this, hud);
             }
         }
 
