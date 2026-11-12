@@ -27,6 +27,7 @@ namespace DontTrustYourLuck.Tests.PlayMode
         {
             yield return SceneManager.LoadSceneAsync("GameBoard", LoadSceneMode.Single);
             _director = UnityEngine.Object.FindAnyObjectByType<MatchDirector>();
+            _director?.ConfigureSeries(false); // pre-R1 tests cover the single-round match; series: SeriesPlayModeTests
             Assert.IsNotNull(_director, "MatchDirector");
             _menu = _director.Hud.MainMenu;
             Assert.IsNotNull(_menu, "HUD has the main menu (run the main menu builder)");

@@ -110,8 +110,9 @@ Este documento especifica **como implementar** o protótipo de *Don't Trust Your
 | Último sobrevivente | Vence se os demais foram eliminados | Proposto |
 | Cartas | Mão inicial 2, limite 3, uma carta por turno (validada no domínio); sem cartas reativas no M2. Ver §10.2 | **Decidido (08/11/2026)** |
 | Casas ocupadas | Permitir múltiplas peças na mesma casa, com deslocamento visual | Proposto |
-| Limite de rodadas | `MaxRounds = 15` | **Decidido (M1)** |
-| Fim por limite | Vence o jogador ativo de maior posição (mais próximo da sorte); empatados na mesma casa **compartilham a vitória** | **Decidido (M1)** |
+| Limite de rodadas | `MaxRounds = 15` | **Decidido (M1)**; ⚠️ na série (R1) cada rodada usa `SeriesRules.MaxCyclesPerRound = 12` |
+| Fim por limite | Vence o jogador ativo de maior posição (mais próximo da sorte); empatados na mesma casa **compartilham a vitória** | **Decidido (M1)**; ⚠️ na série (R1) cada empatado ganha +1 ponto |
+| Partida em rodadas (série) | `SeriesEngine`: 5 pontos; +1 sorte exata / último sobrevivente / teto; nova sorte, casa 0, mão mantida e 1º jogador rotativo a cada rodada; desempate só entre os empatados no topo. Ver §9.5 | **Decidido (11/11/2026, D1–D8)** |
 | Modo local | Hot-seat + bot simples já no M1 | **Decidido (M1)** |
 | Azar atrás de todos os jogadores | Permitido no M1; avaliar em playtest | Proposto |
 | Troca de posição e risco | Swap/Recuar não ativam sorte nem azar; só o movimento dos dados resolve a casa | **Decidido (08/11/2026)** |
@@ -401,6 +402,18 @@ Ao concluir a rodada `MaxRounds` (15) sem vencedor, a partida termina: vencem to
 - Quando a partida termina, cancelar entradas pendentes e bloquear ações.
 - Reinício deve criar novo estado, limpar dados pendentes, animações e listeners temporários.
 - Se todos os jogadores forem eliminados por efeitos simultâneos futuros, exigir regra explícita de empate.
+
+### 9.5 Série de rodadas (Decidido 11/11/2026, R1)
+
+Vocabulário no código: `Series` = partida (até o campeão); rodada da série = um `MatchEngine` completo; `RoundNumber`/`MaxRounds` do `MatchEngine` continuam significando **ciclo** (não renomeados).
+
+- `Domain/Series/`: `SeriesRules` (`PointsToWin = 5`, `MaxCyclesPerRound = 12`), `SeriesState`, `SeriesEngine`, `SeriesEvents` (derivam de `MatchEvent`, para um fluxo único de eventos).
+- O `SeriesEngine` cria **um `MatchEngine` novo por rodada** e converte o fim da rodada em pontos (+1 para cada `WinnerId`). Não duplica regra de movimento.
+- Entre rodadas: `MatchEngine.StartMatch(ids, RoundSetup)` recebe o primeiro jogador (rotação por id crescente) e as mãos carregadas (`CardDrawSource.CarriedOver`, sem sorteio). `RoundSetup = null` mantém o comportamento antigo.
+- Fases: `NotStarted → RoundInProgress → Intermission → … → Finished`. A apresentação chama `StartNextRound()` ao fim da intermissão; comandos de jogo na intermissão retornam `WrongPhase`, e após o campeão, `MatchFinished`.
+- Desempate (D7): líderes empatados com placar ≥ `PointsToWin` jogam uma rodada só entre eles (`SeriesTiebreakerEvent`).
+- Aleatoriedade: as fábricas de RNG são chamadas uma vez por rodada (dados e depois cartas). O `MatchDirector` deriva a semente de cada rodada da semente da série (`RoundSeedFor`), então a semente registrada no log reproduz a série inteira.
+- `MatchSession` com `SeriesRules` usa o `SeriesEngine`; sem ele, mantém a partida de rodada única (usada pelos testes PlayMode anteriores à R1).
 
 ---
 
