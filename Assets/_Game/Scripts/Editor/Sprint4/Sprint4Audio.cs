@@ -410,7 +410,7 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
             for (int i = 0; i < buf.Length; i++) buf[i] *= k;
         }
 
-        private static AudioClip SaveClip(string assetPath, float[] samples, bool music)
+        internal static AudioClip SaveClip(string assetPath, float[] samples, bool music)
         {
             if (!music) Normalize(samples, 0.85f);
             using (var stream = new FileStream(assetPath, FileMode.Create))

@@ -28,6 +28,7 @@ namespace DontTrustYourLuck.EditorTools.Sprint4
             var ui = Sprint4Art.BuildUi();
             var env = Sprint4Art.BuildEnvironment();
             var library = Sprint4Audio.Build();
+            DontTrustYourLuck.EditorTools.Audio.SoundtrackComposer.Build(library);
             var characterAssets = Sprint4Scene.BuildCharacterAssets(characters);
             Sprint4Scene.BuildBoardAndPieceAssets(env);
             AssetDatabase.SaveAssets();

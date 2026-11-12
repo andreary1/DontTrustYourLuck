@@ -140,4 +140,9 @@ MonoBehaviour:
     pitchJitter: 0
     cooldown: 0.1
   music: {fileID: 8300000, guid: 402e053ee15d08945abb451f4ffbf5cc, type: 3}
+  musicPlaylist:
+  - {fileID: 8300000, guid: 448b3f1cd8618054f84eb7194b7a033f, type: 3}
+  - {fileID: 8300000, guid: 25e8c92269fb2014483cb709675557bb, type: 3}
+  - {fileID: 8300000, guid: 47630b349c7044c4e8188f12f8794006, type: 3}
+  - {fileID: 8300000, guid: a79f514037c942144894ccc68c8e0de0, type: 3}
   musicVolume: 0.5
