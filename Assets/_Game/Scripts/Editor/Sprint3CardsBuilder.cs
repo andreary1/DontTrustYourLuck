@@ -58,8 +58,8 @@ namespace DontTrustYourLuck.EditorTools
             },
             new CardSpec
             {
-                Id = CardIds.Swap, Name = "Swap", Description = "Before rolling: swap tiles with a player.",
-                Effect = CardEffectType.SwapPositions, Timing = CardTiming.BeforeRoll, Targeting = CardTargeting.OtherActivePlayer,
+                Id = CardIds.Swap, Name = "Swap", Description = "Before rolling: swap tiles with the nearest player.",
+                Effect = CardEffectType.SwapPositions, Timing = CardTiming.BeforeRoll, Targeting = CardTargeting.NearestOtherPlayer,
                 Accent = Blue, DrawIcon = DrawSwap
             },
             new CardSpec

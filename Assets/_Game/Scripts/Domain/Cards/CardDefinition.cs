@@ -35,7 +35,12 @@ namespace DontTrustYourLuck.Domain.Cards
         /// <summary>No target; passing one is rejected.</summary>
         None,
         /// <summary>Another active player (not the card owner).</summary>
-        OtherActivePlayer
+        OtherActivePlayer,
+        /// <summary>
+        /// The nearest other active player on a different tile (circuit-aware distance). Ties: any of the nearest.
+        /// No candidate (everyone else shares the owner's tile) makes the card unplayable.
+        /// </summary>
+        NearestOtherPlayer
     }
 
     /// <summary>Stable ids of the four MVP cards (decision D10).</summary>
@@ -117,7 +122,7 @@ namespace DontTrustYourLuck.Domain.Cards
         public static CardCatalog CreateDefault() => new CardCatalog(new[]
         {
             new CardDefinition(CardIds.LuckyRoll, CardEffectType.Reroll, CardTiming.AfterRoll, CardTargeting.None),
-            new CardDefinition(CardIds.Swap, CardEffectType.SwapPositions, CardTiming.BeforeRoll, CardTargeting.OtherActivePlayer),
+            new CardDefinition(CardIds.Swap, CardEffectType.SwapPositions, CardTiming.BeforeRoll, CardTargeting.NearestOtherPlayer),
             new CardDefinition(CardIds.Retreat, CardEffectType.MoveBack, CardTiming.BeforeRoll, CardTargeting.None, 3),
             new CardDefinition(CardIds.Shield, CardEffectType.Shield, CardTiming.BeforeRoll, CardTargeting.None),
         });

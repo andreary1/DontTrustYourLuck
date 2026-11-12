@@ -99,7 +99,7 @@ Este documento especifica **como implementar** o protótipo de *Don't Trust Your
 | Número do azar | Sorteado em `1..LuckyNumber−1` no início de cada rodada (`NextInt(1, LuckyNumber)`); revelado antes de qualquer jogada | **Decidido (M1)** |
 | Rodada | Concluída quando todos os jogadores ativos tiveram oportunidade de agir; ordem por `Player.Id`; eliminação no meio da rodada não ressorteia o azar | **Decidido (M1)** |
 | Rotação do primeiro jogador | `MatchRulesConfig.RotateFirstPlayer`: a ordem da rodada `r` começa no assento `(r−1) mod N` (ids ascendentes) e pula eliminados. Ativa em `DefaultMatchConfig` | **Aprovado para playtest (10/11/2026)** |
-| Esbarrão | `MatchRulesConfig.BumpDistance` (padrão do domínio 0 = desligado; `DefaultMatchConfig` = 3). Resolvido em `ChooseDie` depois de sorte/azar, só se o jogador que se moveu continua ativo; ocupantes (ordem de id) recuam `max(0, casa − BumpDistance)` e geram `PlayerBumpedEvent` sem resolver casa. Casa 0 e `LuckyNumber` nunca esbarram; cartas não esbarram. `CountBumpVictims` é a consulta sem efeito usada pelo bot (cada vítima vale 1,5 casa) e pela prévia "BUMP!" dos dados | **Aprovado para playtest (10/11/2026)** |
+| Esbarrão | `MatchRulesConfig.BumpDistance` (padrão do domínio 0 = desligado; `DefaultMatchConfig` = 3). Resolvido em `ChooseDie` depois de sorte/azar, só se o jogador que se moveu continua ativo; ocupantes (ordem de id) recuam `max(0, casa − BumpDistance)`, geram `PlayerBumpedEvent` e **resolvem a nova casa** (12/11/2026): Lucky = vitória do empurrado; zona do azar = `ShieldConsumedEvent` ou `PlayerEliminatedEvent`; último sobrevivente encerra. Casa 0 e `LuckyNumber` nunca esbarram; cartas não esbarram. `CountBumpVictims`/`PreviewBumps` são consultas sem efeito usadas pelo bot (vítima vale 1,5 casa, eliminação +6, nunca empurra alguém para o Lucky) e pela prévia "BUMP!" dos dados | **Aprovado para playtest (10/11/2026)** |
 | Zona do azar | `MatchRulesConfig.UnluckyZoneRadius` (padrão do domínio 0; `DefaultMatchConfig` = 1). Perigosa toda casa a até `r` do `UnluckyNumber` (`IsInUnluckyZone`); casa 0 e `LuckyNumber` nunca; circuito dá a volta em `1..BoardLength`; linear limita a `1..LuckyNumber−1`. Vale também para o número preso de Sticky Luck e para a checagem de Freeze no fim da rodada | **Aprovado para playtest (10/11/2026)** |
 | Dois dados | Dois valores `1..6`; jogador escolhe **um**; escolha obrigatória mesmo se ambos levam ao azar | **Decidido (M1)** |
 | Exceder o alvo | **Rebote no número da sorte** (não no limite do tabuleiro) | **Decidido (M1)** |
@@ -438,14 +438,14 @@ Vocabulário no código: `Series` = partida (até o campeão); rodada da série 
 | ID | Nome | Fase | Alvo | Efeito | Sorte/azar | Após o uso |
 |---|---|---|---|---|---|---|
 | `lucky_roll` | Lucky Roll | `AwaitingDiceChoice` | — | Descarta os dois dados e rola dois novos com o RNG de dados; sem volta aos anteriores | — | Continua em `AwaitingDiceChoice` |
-| `swap` | Swap | `AwaitingRoll` | Outro jogador ativo | Troca as posições | Não ativa | Continua em `AwaitingRoll` |
+| `swap` | Swap | `AwaitingRoll` | Jogador ativo **mais próximo** em outra casa (`CardTargeting.NearestOtherPlayer`, distância de circuito via `MatchEngine.TileDistance`; empates: qualquer um) | Troca as posições | Não ativa | Continua em `AwaitingRoll` |
 | `retreat_3` | Retreat | `AwaitingRoll` | — | `max(0, posição − 3)` | Não ativa | Continua em `AwaitingRoll` |
 | `shield` | Shield | `AwaitingRoll` | Si mesmo | Proteção contra uma eliminação pelo azar no próximo movimento | — | Continua em `AwaitingRoll` |
 
 Regras gerais:
 - Uma carta por turno (`CardAlreadyPlayedThisTurn`); mão inicial 2; limite 3 (`HandFull`).
 - A carta só sai da mão depois de validada e aplicada; comandos rejeitados não consomem carta nem RNG.
-- Cartas **sem efeito real** (Recuar na casa 0; Swap com alvo na mesma casa) são **válidas e consumidas** (decisão do usuário).
+- Cartas **sem efeito real** (Recuar na casa 0) são **válidas e consumidas** (decisão do usuário). Swap com alvo na mesma casa passou a ser **inválido** (12/11/2026): o alvo precisa ser o rival mais próximo em outra casa; sem rival em outra casa, a carta fica indisponível.
 - Sorteio da mão: uniforme com reposição entre as definições do catálogo, num **stream de RNG próprio das cartas** (derivado da seed da partida), para não alterar a sequência de sorte/azar/dados.
 - Shield: a proteção é consumida ao bloquear a eliminação e expira ao fim do movimento seguro; nunca persiste entre turnos.
 - Bots ainda não usam cartas; jogam só com os dados.
