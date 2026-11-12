@@ -33,7 +33,7 @@ namespace DontTrustYourLuck.Gameplay
                 int final = engine.PreviewMove(playerId, roll[i]).FinalPosition;
                 int score = final == state.LuckyNumber ? 1_000_000 :
                     engine.IsDangerous(playerId, final) && !state.GetPlayer(playerId).HasShield ? -1_000_000 :
-                    -engine.DistanceToLucky(final) * 10 + engine.CountBumpVictims(playerId, final) * 15;
+                    -engine.DistanceToLucky(final) * 10 + BumpScore(engine.PreviewBumps(playerId, final));
                 if (score > bestScore) // strict: ties keep the lower index
                 {
                     bestScore = score;
@@ -42,6 +42,10 @@ namespace DontTrustYourLuck.Gameplay
             }
             return bestIndex;
         }
+
+        /// <summary>Bumps are worth taking, more so when they knock someone out; never push a rival onto the lucky tile.</summary>
+        private static int BumpScore(BumpPreview bump) =>
+            bump.GivesWin ? -500_000 : bump.Victims * 15 + bump.Eliminated * 60;
 
         // Positions are always <= lucky (rebound), so "closest to lucky" is "smallest lucky - final".
         private static int Score(int final, int lucky, int unlucky)

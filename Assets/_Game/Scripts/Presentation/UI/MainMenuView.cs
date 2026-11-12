@@ -25,17 +25,17 @@ namespace DontTrustYourLuck.Presentation.UI
         {
             "<b>Lucky number</b>: drawn once per match. Land on it <b>exactly</b> to win.",
             "<b>Unlucky number</b>: changes every round. End a move on it and you are <b>out</b>.",
-            "<b>Your turn</b>: roll two dice and choose <b>one</b> of them to move.",
+            "<b>Your turn</b>: roll two dice and move by <b>one</b>. Land on a rival to push them <b>3 tiles back</b>; their new tile counts.",
             "<b>Too far?</b> Extra steps bounce back from the lucky number.",
-            "<b>Cards</b>: one per turn. Lucky Roll, Swap, Retreat or Shield.",
-            "<b>Round 15</b>: the closest to the lucky number wins. The last animal standing wins too.",
+            "<b>Cards</b>: one per turn. Swap trades tiles with your <b>nearest</b> rival.",
+            "<b>Modes</b>: Quick Match ends at round 15 or with the last animal standing. Series: win rounds to score, first to 3, 5 or 7.",
         };
         public string optionsTitle = "OPTIONS";
         public string creditsTitle = "CREDITS";
         [TextArea(6, 16)]
         public string creditsBody =
             "<b>Don't Trust Your Luck!</b>\nA party board game made for Unity Game Jam 2026.\n\n" +
-            "<b>Design & development</b>\nandreary1\n\n" +
+            "<b>Design & development</b>\nandreary1\nassefjl-gif\n\n" +
             "<b>Built with</b>\nUnity 6 - Universal Render Pipeline\n\n" +
             "<b>Art & audio</b>\nOriginal art and music made for this project.\nVisual inspiration: Oaxaca (Mexico) and Fortaleza, Ceará (Brazil).\n\n" +
             "<b>Thanks for playing!</b>";
@@ -110,12 +110,12 @@ namespace DontTrustYourLuck.Presentation.UI
         {
             text.howToSteps = new[]
             {
-                "<b>Lucky number:</b> stop <b>exactly</b> on the golden number to win. Passing over it does not count.",
-                "<b>Circuit:</b> after tile 30, keep going from tile 1. The starting tile 0 is not part of the laps.",
-                "<b>Unlucky number:</b> changes every round. End a move on it and you are <b>out</b>, unless a Shield saves you.",
-                "<b>Cards:</b> one per turn. Draw one every two rounds, up to three in hand. A Shield lasts until it blocks.",
-                "<b>Debuffs:</b> start next round and last one round. Frozen players can still use cards; danger strikes at round end.",
-                "<b>Final:</b> the last animal standing wins or, at round 15, whoever is fewest steps from the target along the circuit."
+                "<b>Lucky number:</b> stop <b>exactly</b> on the golden number to win. After tile 30 the circuit goes on from tile 1.",
+                "<b>Danger zone:</b> the unlucky number changes every round. End a move on it <b>or next to it</b> and you are <b>out</b>, unless a Shield saves you.",
+                "<b>Your turn:</b> roll two dice and move by <b>one</b>. Land on a rival to push them <b>3 tiles back</b>; their new tile counts, good or bad.",
+                "<b>Cards:</b> one per turn, one more every two rounds (max 3). Swap trades tiles with your <b>nearest</b> rival. A Shield lasts until it blocks.",
+                "<b>Debuffs:</b> Freeze, Heavy Feet, Cracked Die and Sticky Luck hit the target next round, for one round.",
+                "<b>Modes:</b> Quick Match ends with the last animal standing or at round 15 (closest wins). Series: win rounds to score, first to 3, 5 or 7."
             };
             ApplyLabels();
         }

@@ -13,6 +13,31 @@ namespace DontTrustYourLuck.Domain.Cards
     public sealed class CardEffectResolver
     {
         private readonly Dictionary<CardEffectType, ICardEffect> _effects = new Dictionary<CardEffectType, ICardEffect>();
+        private readonly Func<int, int, int> _tileDistance;
+
+        /// <param name="tileDistance">Steps between two tiles (circuit-aware); defaults to the plain difference.</param>
+        public CardEffectResolver(Func<int, int, int> tileDistance = null)
+        {
+            _tileDistance = tileDistance ?? ((a, b) => Math.Abs(a - b));
+        }
+
+        /// <summary>
+        /// Distance from <paramref name="playerId"/> to the nearest other active player on a different tile, or -1 when
+        /// there is none.
+        /// </summary>
+        public int NearestRivalDistance(MatchState state, int playerId)
+        {
+            var player = state.GetPlayer(playerId);
+            if (player == null) return -1;
+            int best = -1;
+            foreach (var other in state.Players)
+            {
+                if (other.Id == playerId || !other.IsActive || other.Position == player.Position) continue;
+                int d = _tileDistance(player.Position, other.Position);
+                if (best < 0 || d < best) best = d;
+            }
+            return best;
+        }
 
         public void Register(ICardEffect effect)
         {
@@ -87,6 +112,14 @@ namespace DontTrustYourLuck.Domain.Cards
                     target = state.GetPlayer(targetPlayerId.Value);
                     // Unknown, self, eliminated or winner targets are all invalid.
                     if (target == null || target.Id == playerId || !target.IsActive) return CommandError.InvalidTarget;
+                    break;
+                case CardTargeting.NearestOtherPlayer:
+                    if (!targetPlayerId.HasValue) return CommandError.TargetRequired;
+                    target = state.GetPlayer(targetPlayerId.Value);
+                    if (target == null || target.Id == playerId || !target.IsActive || target.Position == player.Position)
+                        return CommandError.InvalidTarget;
+                    if (_tileDistance(player.Position, target.Position) != NearestRivalDistance(state, playerId))
+                        return CommandError.InvalidTarget;
                     break;
             }
 

@@ -189,13 +189,14 @@ namespace DontTrustYourLuck.Tests.PlayMode
             yield return WaitIdle();
             var state = _director.Session.State;
             state.GetPlayer(2).Position = 9; // test setup through the rules assembly's internals
+            // P3 stays on P1's tile (0): same-tile rivals are never Swap targets.
 
             int slot = SlotOf(CardIds.Swap);
             Hand.Slots[slot].Button.onClick.Invoke();
             Assert.IsTrue(Hand.TargetsVisible, "targets shown for Swap");
             Assert.IsFalse(Hand.PlayButton.interactable, "needs a target first");
             var shown = Enumerable.Range(0, Hand.TargetButtons.Count).Select(Hand.TargetIdAt).Where(id => id >= 0).ToArray();
-            CollectionAssert.AreEquivalent(new[] { 2, 3 }, shown, "only other active players");
+            CollectionAssert.AreEquivalent(new[] { 2 }, shown, "only the nearest rival on another tile");
 
             // Cancel: nothing consumed.
             Hand.CancelButton.onClick.Invoke();

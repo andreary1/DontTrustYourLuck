@@ -166,6 +166,7 @@ namespace DontTrustYourLuck.Tests.Domain.Cards
         public void Swap_RejectsSelfEliminatedUnknownAndMissingTargets_WithoutConsuming()
         {
             Start(players: 3);
+            P(2).Position = 4;
             P(3).Status = PlayerStatus.Eliminated;
             string card = Grant(1, CardIds.Swap);
 
@@ -197,16 +198,64 @@ namespace DontTrustYourLuck.Tests.Domain.Cards
         }
 
         [Test]
-        public void Swap_WithTargetOnSameTile_IsValidAndConsumed()
+        public void Swap_WithTargetOnSameTile_IsRejected_AndCardIsKept()
         {
             Start();
             P(1).Position = 5;
             P(2).Position = 5;
             string card = Grant(1, CardIds.Swap);
 
-            Assert.IsTrue(_engine.PlayCard(1, card, 2).Success);
-            Assert.AreEqual(0, P(1).Hand.Count);
-            Assert.IsTrue(State.CardPlayedThisTurn);
+            Assert.AreEqual(CommandError.InvalidTarget, _engine.PlayCard(1, card, 2).Error, "nobody on another tile");
+            Assert.AreEqual(1, P(1).Hand.Count);
+            Assert.IsFalse(State.CardPlayedThisTurn);
+        }
+
+        [Test]
+        public void Swap_OnlyTheNearestRival_IsAValidTarget()
+        {
+            Start(players: 4);
+            P(1).Position = 10;
+            P(2).Position = 20; // 10 away
+            P(3).Position = 7;  // 3 away: nearest
+            P(4).Position = 10; // same tile: skipped
+            string card = Grant(1, CardIds.Swap);
+
+            Assert.AreEqual(CommandError.InvalidTarget, _engine.ValidateCardPlay(1, card, 2), "farther rival");
+            Assert.AreEqual(CommandError.InvalidTarget, _engine.ValidateCardPlay(1, card, 4), "same tile");
+            var result = _engine.PlayCard(1, card, 3);
+            Assert.IsTrue(result.Success, result.ToString());
+            Assert.AreEqual(7, P(1).Position);
+            Assert.AreEqual(10, P(3).Position);
+        }
+
+        [Test]
+        public void Swap_TiedNearestRivals_EitherIsValid()
+        {
+            Start(players: 3);
+            P(1).Position = 10;
+            P(2).Position = 12;
+            P(3).Position = 8;
+            string card = Grant(1, CardIds.Swap);
+            Assert.AreEqual(CommandError.None, _engine.ValidateCardPlay(1, card, 2));
+            Assert.AreEqual(CommandError.None, _engine.ValidateCardPlay(1, card, 3));
+        }
+
+        [Test]
+        public void Swap_OnTheCircuit_MeasuresTheShortWayAround()
+        {
+            _rng = new ScriptedRandomSource(25) { Unlucky = 7 };
+            _cardRng = new ScriptedRandomSource(new int[0]);
+            _engine = new MatchEngine(new MatchRulesConfig(startingHandSize: 0, circuit: true), _rng,
+                new CardSetup(CardCatalog.CreateDefault(), _cardRng));
+            Assert.IsTrue(_engine.StartMatch(new[] { 1, 2, 3 }).Success);
+            P(1).Position = 29;
+            P(2).Position = 2;  // 3 steps ahead across the lap seam
+            P(3).Position = 25; // 4 steps behind
+            string card = Grant(1, CardIds.Swap);
+            Assert.AreEqual(3, _engine.TileDistance(29, 2));
+            Assert.AreEqual(1, _engine.TileDistance(0, 1), "start tile sits before tile 1");
+            Assert.AreEqual(CommandError.None, _engine.ValidateCardPlay(1, card, 2));
+            Assert.AreEqual(CommandError.InvalidTarget, _engine.ValidateCardPlay(1, card, 3));
         }
 
         [Test]
@@ -538,10 +587,12 @@ namespace DontTrustYourLuck.Tests.Domain.Cards
         public void ValidateCardPlay_MatchesPlayCard_WithoutChangingState()
         {
             Start();
+            P(2).Position = 3;
             string swap = Grant(1, CardIds.Swap);
             Assert.AreEqual(CommandError.TargetRequired, _engine.ValidateCardPlay(1, swap));
             Assert.AreEqual(CommandError.None, _engine.ValidateCardPlay(1, swap, 2));
             Assert.AreEqual(0, P(1).Position);
+            Assert.AreEqual(3, P(2).Position);
             Assert.IsNotNull(P(1).Hand.Find(swap));
             Assert.IsFalse(State.CardPlayedThisTurn);
         }

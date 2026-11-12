@@ -51,8 +51,9 @@ namespace DontTrustYourLuck.Domain.Match
     ///   AwaitingDiceChoice [+ optional Lucky Roll] -> ChooseDie -> resolution. At most one card per turn.
     /// Resolution order after a move:
     ///   position -> lucky (win, ends immediately) -> unlucky (Shield blocks the elimination, else elimination)
-    ///   -> shield expires -> last survivor -> bump (survivor only; occupants pushed back BumpDistance, no tile
-    ///   resolution) -> next turn/round
+    ///   -> shield expires -> last survivor -> bump (survivor only; occupants pushed back BumpDistance, in id
+    ///   order; each one's new tile resolves: lucky = that player wins, unlucky zone = Shield or elimination)
+    ///   -> next turn/round
     ///   -> round limit (MaxRounds; highest-position active players win, ties share).
     /// Card moves (Swap, Retreat) never resolve lucky/unlucky tiles.
     ///
@@ -93,7 +94,7 @@ namespace DontTrustYourLuck.Domain.Match
             _cards = cards;
 
             // Explicit registration per effect type (TDD §10.1). New effects are added here.
-            _cardResolver = new CardEffectResolver();
+            _cardResolver = new CardEffectResolver(TileDistance);
             _cardResolver.Register(new RerollEffect(RollForCurrentPlayer));
             _cardResolver.Register(new SwapPositionsEffect());
             _cardResolver.Register(new MoveBackEffect());
@@ -252,7 +253,7 @@ namespace DontTrustYourLuck.Domain.Match
             }
 
             // 6. Same-tile bump: only a mover that is still in the match pushes the occupants back.
-            if (player.IsActive) ResolveBumps(player, events);
+            if (player.IsActive && ResolveBumps(player, events)) return CommandResult.Ok(events);
 
             // 7. Next turn or round.
             EndTurn(events);
@@ -272,16 +273,77 @@ namespace DontTrustYourLuck.Domain.Match
             return count;
         }
 
-        private void ResolveBumps(PlayerState mover, List<MatchEvent> events)
+        /// <summary>Tile a bumped player lands on.</summary>
+        public int BumpDestination(int tile) => Math.Max(0, tile - _rules.BumpDistance);
+
+        /// <summary>
+        /// What a bump at <paramref name="tile"/> would do (read-only, for bots and hints): victims, how many of them
+        /// would be eliminated and whether one of them would win on the lucky tile.
+        /// </summary>
+        public BumpPreview PreviewBumps(int moverId, int tile)
+        {
+            int victims = CountBumpVictims(moverId, tile);
+            if (victims == 0) return default;
+            int destination = BumpDestination(tile);
+            bool givesWin = destination == _state.LuckyNumber;
+            int eliminated = 0;
+            foreach (var p in _state.PlayerList)
+            {
+                if (p.Id == moverId || !p.IsActive || p.Position != tile) continue;
+                if (!givesWin && IsDangerous(p.Id, destination) && !p.HasShield) eliminated++;
+            }
+            return new BumpPreview(victims, eliminated, givesWin);
+        }
+
+        /// <summary>
+        /// Pushes every occupant of the mover's tile back and resolves each one's new tile, in id order: the lucky
+        /// tile makes that player win; the unlucky zone eliminates them unless their Shield blocks it. Returns true
+        /// when the match ended (a bumped player won, or only one player is left).
+        /// </summary>
+        private bool ResolveBumps(PlayerState mover, List<MatchEvent> events)
         {
             int tile = mover.Position;
-            if (CountBumpVictims(mover.Id, tile) == 0) return;
+            if (CountBumpVictims(mover.Id, tile) == 0) return false;
             foreach (var p in _state.PlayerList) // ascending id order
             {
                 if (p.Id == mover.Id || !p.IsActive || p.Position != tile) continue;
-                p.Position = Math.Max(0, tile - _rules.BumpDistance);
+                p.Position = BumpDestination(tile);
                 events.Add(new PlayerBumpedEvent(mover.Id, p.Id, tile, p.Position));
+
+                if (p.Position == _state.LuckyNumber)
+                {
+                    Finish(MatchEndReason.ExactLucky, new List<int> { p.Id }, events);
+                    return true;
+                }
+                if (!IsDangerous(p.Id, p.Position)) continue;
+                if (p.HasShield)
+                {
+                    p.HasShield = false;
+                    events.Add(new ShieldConsumedEvent(p.Id, true, p.Position));
+                    continue;
+                }
+                p.Status = PlayerStatus.Eliminated;
+                events.Add(new PlayerEliminatedEvent(p.Id, p.Position, EliminationReason.UnluckyTile));
+                if (_state.ActivePlayerCount == 1)
+                {
+                    Finish(MatchEndReason.LastSurvivor, new List<int> { FirstActivePlayerId() }, events);
+                    return true;
+                }
             }
+            return false;
+        }
+
+        /// <summary>
+        /// Steps between two tiles. On the circuit the start tile 0 sits where tile BoardLength is (both lead to
+        /// tile 1) and the shorter way around counts.
+        /// </summary>
+        public int TileDistance(int a, int b)
+        {
+            if (!_rules.Circuit) return Math.Abs(a - b);
+            int n = _rules.BoardLength;
+            int x = a == 0 ? n : a, y = b == 0 ? n : b;
+            int d = Math.Abs(x - y);
+            return Math.Min(d, n - d);
         }
 
         /// <summary>

@@ -15,8 +15,8 @@ MonoBehaviour:
   id: swap
   effect: 1
   timing: 0
-  targeting: 1
+  targeting: 2
   amount: 0
   displayName: Swap
-  shortDescription: 'Before rolling: swap tiles with a player.'
+  shortDescription: 'Before rolling: swap tiles with the nearest player.'
   art: {fileID: 21300000, guid: d19b4f50eca71c04a9ddecf6db01f7e4, type: 3}
