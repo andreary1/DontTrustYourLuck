@@ -167,6 +167,10 @@ Essas questões não devem ser codificadas como regras definitivas sem uma decis
 
 Inspirar-se em impressos do Jogo do Bicho e loterias ilustradas **não** implica simular apostas reais. Criar iconografia, numeração e artes originais. Para artistas com obras protegidas, pesquisar características gerais e não copiar obras específicas, personagens, composições ou texturas sem licença. Não sugerir endosso dos artistas ou espólios.
 
+### 6.6 Narrativa (Decidido 12/11/2026)
+
+Premissa **"O Baralho do Cantador"**: um baralho encantado viaja de feira em feira; o Cantador canta a sorte em versos de cordel; os bichos são cartas vivas; Azar, um urubu, marca a casa do azar a cada ciclo. Moral: a sorte engana, quem vence é quem escolhe bem. Textos do jogo em **inglês**. Escopo atual: abertura em cordel + falas do Cantador por evento. Detalhes, versos e proposta de integração em `docs/NARRATIVE.md`.
+
 ## 7. Cidades e artistas — visão de longo prazo
 
 | Cidade | País | Referência artística | Identidade do cenário | Evento proposto |
