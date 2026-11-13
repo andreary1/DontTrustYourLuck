@@ -55,12 +55,15 @@ namespace DontTrustYourLuck.Presentation.Audio
     {
         [SerializeField] private List<SoundEffectEntry> entries = new List<SoundEffectEntry>();
         [SerializeField] private AudioClip music;
+        [Tooltip("Soundtrack played in shuffled order during the match. Empty: the single Music clip loops instead.")]
+        [SerializeField] private AudioClip[] musicPlaylist = Array.Empty<AudioClip>();
         [Range(0f, 1f)] [SerializeField] private float musicVolume = 0.55f;
 
         private Dictionary<SfxId, SoundEffectEntry> _lookup;
 
         public IReadOnlyList<SoundEffectEntry> Entries => entries;
         public AudioClip Music => music;
+        public IReadOnlyList<AudioClip> MusicPlaylist => musicPlaylist ?? Array.Empty<AudioClip>();
         public float MusicVolume => musicVolume;
 
         public bool TryGet(SfxId id, out SoundEffectEntry entry)
@@ -87,6 +90,16 @@ namespace DontTrustYourLuck.Presentation.Audio
             music = musicClip;
             musicVolume = Mathf.Clamp01(musicMix);
             _lookup = null;
+        }
+
+        /// <summary>Editor setup (soundtrack builder). Null entries are dropped.</summary>
+        public void ConfigurePlaylist(IEnumerable<AudioClip> tracks)
+        {
+            var list = new List<AudioClip>();
+            if (tracks != null)
+                foreach (var t in tracks)
+                    if (t != null) list.Add(t);
+            musicPlaylist = list.ToArray();
         }
     }
 }

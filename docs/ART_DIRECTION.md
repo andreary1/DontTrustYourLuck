@@ -405,6 +405,23 @@ Todos em `Assets/_Game/Audio/SFX/` e registrados em `Assets/_Game/Data/Audio/Sou
 | Loop | — | 60–90 s |
 | Licença | Original | Própria, CC0 ou encomendada; **nunca música comercial sem licença** |
 
+#### 10.4.1 Trilha de samba (playlist da partida) — **Implementado (sintetizado), não avaliado em audição**
+
+Quatro faixas **originais** compostas por código (`SoundtrackComposer`, menu `Tools > Don't Trust Your Luck > Build Soundtrack (Samba)`), no estilo do samba carioca dos anos 1920–30. As gravações de referência listadas pelo usuário (Noel Rosa, Sinhô, Custódio Mesquita, "A Baiana Deu Sinal") serviram **só como inspiração** de andamento, instrumentação e clima: nenhuma melodia, letra ou gravação foi reproduzida, e nenhum arquivo de referência entrou no repositório. As melodias saem de motivos rítmicos escritos à mão e realizados sobre a cifra de cada faixa.
+
+| Arquivo | Título | Estilo / inspiração | BPM, tom | Instrumentação |
+|---|---|---|---|---|
+| `MUS_Samba_BilhetePremiado.wav` | Bilhete Premiado | Samba-marcha (clima de "Com que Roupa?") | 108, Dó maior | Flauta → clarinete, cavaquinho, violão com baixarias, surdo, pandeiro, tamborim, trombone no 2º passe |
+| `MUS_Samba_ProsaNoBalcao.wav` | Prosa no Balcão | Samba de breque com paradas (clima de "Conversa de Botequim") | 96, Lá menor | Clarinete → trompete com surdina, prato-e-faca, cavaquinho, violão, surdo, pandeiro |
+| `MUS_Samba_MaxixeDoAzar.wav` | Maxixe do Azar | Maxixe/samba amaxixado (clima das gravações de Sinhô, 1928) | 112, Fá maior | Piano em habanera, clarinete → flauta, trombone, surdo, pandeiro, ganzá |
+| `MUS_Samba_RodaDoCantador.wav` | Roda do Cantador | Samba de roda, pergunta e resposta (clima de "A Baiana Deu Sinal") | 126, Sol maior | Voz sem letra do Cantador, coro de flauta e clarinete em terças, palmas, atabaque, ganzá, agogô |
+
+- Forma: 64 compassos 2/4 (AABA ×2; o segundo passe troca o solista e acrescenta contracantos), 61–80 s, WAV mono 22,05 kHz, emenda sem estalo.
+- Cor de época "78 rpm" leve (faixa de 140 Hz a 5,5 kHz, chiado e estalos discretos), alinhada à estética de cartela antiga.
+- Loudness medido: −12,9 a −14,2 LUFS integrados, pico ≤ −1 dBFS.
+- Reprodução: `SoundEffectLibrary.musicPlaylist` → `MusicController` toca em ordem embaralhada (`MusicPlaylistOrder`: cada faixa uma vez por rodada, sem repetir a mesma em sequência), com fade de 1,5 s entre faixas. O *ducking* continua. Com a playlist vazia, volta ao loop do `MUS_Fortaleza_Baiao.wav`.
+- Pendente: audição/ajuste de mixagem pelo time e teste em build Web.
+
 Música adaptativa: **Implementado** apenas o *ducking* (volume cai ~1,2 s no sorteio do Unlucky e ~3,5 s na vitória); camadas adaptativas continuam **Proposto**.
 
 ### 10.5 Web

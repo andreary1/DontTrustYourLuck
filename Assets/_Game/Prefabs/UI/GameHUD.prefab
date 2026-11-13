@@ -20214,7 +20214,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: "<b>Don't Trust Your Luck!</b>\nA party board game made for Unity Game Jam 2026.\n\n<b>Design & development</b>\nandreary1\nassefjl-gif\n\n<b>Built with</b>\nUnity 6 - Universal Render Pipeline\n\n<b>Art & audio</b>\nOriginal art and music made for this project.\nVisual inspiration: Oaxaca (Mexico) and Fortaleza, Cear\xE1 (Brazil).\n\n<b>Thanks for playing!</b>"
+  m_Text: "<b>Don't Trust Your Luck!</b>\nA party board game made for Unity Game Jam 2026.\n\n<b>Design & development</b>\nandreary1, assefjl-gif\n\n<b>Built with</b>\nUnity 6 - Universal Render Pipeline\n\n<b>Art & audio</b>\nOriginal art and music made for this project.\nVisual inspiration: Oaxaca (Mexico) and Fortaleza, Cear\xE1 (Brazil).\n\n<b>Font</b>\nJersey 25 by The Soft Type Project Authors (SIL OFL 1.1)\n\n<b>Thanks for playing!</b>"
 --- !u!1 &8575686990850390773
 GameObject:
   m_ObjectHideFlags: 0
@@ -21657,7 +21657,7 @@ MonoBehaviour:
     - '<b>Modes</b>: Quick Match ends at round 15 or with the last animal standing. Series: win rounds to score, first to 3, 5 or 7.'
     optionsTitle: OPTIONS
     creditsTitle: CREDITS
-    creditsBody: "<b>Don't Trust Your Luck!</b>\nA party board game made for Unity Game Jam 2026.\n\n<b>Design & development</b>\nandreary1\nassefjl-gif\n\n<b>Built with</b>\nUnity 6 - Universal Render Pipeline\n\n<b>Art & audio</b>\nOriginal art and music made for this project.\nVisual inspiration: Oaxaca (Mexico) and Fortaleza, Cear\xE1 (Brazil).\n\n<b>Thanks for playing!</b>"
+    creditsBody: "<b>Don't Trust Your Luck!</b>\nA party board game made for Unity Game Jam 2026.\n\n<b>Design & development</b>\nandreary1, assefjl-gif\n\n<b>Built with</b>\nUnity 6 - Universal Render Pipeline\n\n<b>Art & audio</b>\nOriginal art and music made for this project.\nVisual inspiration: Oaxaca (Mexico) and Fortaleza, Cear\xE1 (Brazil).\n\n<b>Font</b>\nJersey 25 by The Soft Type Project Authors (SIL OFL 1.1)\n\n<b>Thanks for playing!</b>"
   showOnStart: 1
   rootGroup: {fileID: 2522792774402086109}
   backdrop: {fileID: 3392295194184642078}

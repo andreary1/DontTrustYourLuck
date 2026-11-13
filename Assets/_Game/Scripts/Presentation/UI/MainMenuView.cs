@@ -35,9 +35,10 @@ namespace DontTrustYourLuck.Presentation.UI
         [TextArea(6, 16)]
         public string creditsBody =
             "<b>Don't Trust Your Luck!</b>\nA party board game made for Unity Game Jam 2026.\n\n" +
-            "<b>Design & development</b>\nandreary1\nassefjl-gif\n\n" +
+            "<b>Design & development</b>\nandreary1, assefjl-gif\n\n" +
             "<b>Built with</b>\nUnity 6 - Universal Render Pipeline\n\n" +
             "<b>Art & audio</b>\nOriginal art and music made for this project.\nVisual inspiration: Oaxaca (Mexico) and Fortaleza, Ceará (Brazil).\n\n" +
+            "<b>Font</b>\nJersey 25 by The Soft Type Project Authors (SIL OFL 1.1)\n\n" +
             "<b>Thanks for playing!</b>";
     }
 
