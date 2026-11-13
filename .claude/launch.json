@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8080", "--bind", "127.0.0.1", "--protocol", "HTTP/1.1", "--directory", "Builds/Web"],
       "port": 8080
+    },
+    {
+      "name": "web-release",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8081", "--bind", "127.0.0.1", "--protocol", "HTTP/1.1", "--directory", "Builds/WebRelease"],
+      "port": 8081
     }
   ]
 }
